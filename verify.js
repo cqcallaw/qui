@@ -1,9 +1,6 @@
 request_timeout = 3000;
 
-var url = 'http://bafybeid4yuxsupkihtng3um6epzdpccmvk5fot53azgqcexz3pa3evrvue.ipfs.localhost:8080/'
-if (typeof(window) !== 'undefined') {
-	url = window.location.href;
-} else {
+if (typeof(window) === 'undefined') {
 	var XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;;
 	var openpgp = require('openpgp');
 	var fetch = require('node-fetch');
@@ -62,14 +59,28 @@ async function get_pubkey(url) {
 	return pubkey;
 }
 
-async function verify() {
-	console.log("Verifying", url)
+async function get_content(url) {
+	let message = null;
 
+	const response = await fetch(url);
+	if (!response.ok) {
+		console.log("Failed to retrieve", url, "for verification");
+		return null;
+	}
+
+	// use bytes because not all content is text content
+	const data = new Uint8Array(await response.arrayBuffer());
+	message = openpgp.message.fromBinary(data);
+
+	return message;
+}
+
+async function get_real_url(url) {
 	if (url.substr(-1) === '/') {
 		console.log(url, "does not contain path information, checking for real path...")
 		// ref: https://stackoverflow.com/a/10926978/577298
 		real_url_dict = {}
-		path_names = ['index', 'index.html']
+		path_names = ['index', 'index.htm', 'index.html']
 
 		// send async HTTP requests for each possible real path
 		path_names.forEach(key => {
@@ -82,6 +93,9 @@ async function verify() {
 					console.log(real_url, "result", request.status);
 					real_url_dict[key] = request.status;
 				}
+			}
+			request.onerror = function() {
+				console.log("Error occurred");
 			}
 			request.open('GET', real_url, true);
 			request.send();
@@ -99,7 +113,7 @@ async function verify() {
 
 		if (!has_keys(path_names, real_url_dict)) {
 			console.log("Failed to query real URL.")
-			return;
+			return null;
 		}
 
 		let real_url = ""
@@ -112,34 +126,47 @@ async function verify() {
 
 		if (real_url === "") {
 			console.log("No valid real URL found.")
-			return;
+			return null;
 		}
 
 		url = real_url;
 		console.log("Using real URL", url);
 	}
 
-	signature = await get_signature(url);
+	return url;
+}
+
+async function verify() {
+	var url = 'http://bafybeid4yuxsupkihtng3um6epzdpccmvk5fot53azgqcexz3pa3evrvue.ipfs.localhost:8080/'
+	if (typeof(window) !== 'undefined') {
+		url = window.location.href;
+	}
+
+	console.log("Verifying", url)
+
+	url = await get_real_url(url);
+	if (url == null) {
+		console.log("Failed to get real URL.");
+		return;
+	}
+
+	const signature = await get_signature(url);
 	if (signature == null) {
 		console.log("Failed to obtain signature file.");
 		return;
 	}
 
-	pubkey = await get_pubkey(url);
+	const pubkey = await get_pubkey(url);
 	if (pubkey == null) {
 		console.log("Failed to obtain public key.");
 		return;
 	}
 
-	const response = await fetch(url);
-	if (!response.ok) {
-		console.log("Failed to retrieve", url, "for verification");
+	const message = await get_content(url);
+	if (openpgp.message == null) {
+		console.log("Failed to obtain content.");
 		return;
 	}
-
-	// verify bytes because not all signed files are text
-	const data = new Uint8Array(await response.arrayBuffer());
-	const message = openpgp.message.fromBinary(data);
 
 	const verified = await openpgp.verify({
 		message: message,
