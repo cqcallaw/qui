@@ -7,10 +7,14 @@
 		"activeTab",
 		"declarativeContent",
 		"storage",
-		"webNavigation"
+		"webNavigation",
+		"notifications",
+		"*://*.ipfs.localhost/*",
+		"*://*.ipns.localhost/*"
 	],
 	"background": {
 		"scripts": [
+			"openpgp.js",
 			"main.js"
 		],
 		"persistent": false
@@ -24,18 +28,6 @@
 			"128": "images/get_started128.png"
 		}
 	},
-	"content_scripts": [
-		{
-			"matches": [
-				"*://*.ipfs.localhost/*",
-				"*://*.ipns.localhost/*"
-			],
-			"js": [
-				"openpgp.js",
-				"verify.js"
-			]
-		}
-	],
 	"icons": {
 		"16": "images/get_started16.png",
 		"32": "images/get_started32.png",
