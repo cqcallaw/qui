@@ -9,14 +9,25 @@ const sleep = (milliseconds) => {
 	return new Promise(resolve => setTimeout(resolve, milliseconds))
 }
 
-function has_keys(keys, dict) {
-	for (let i = 0; i < keys.length; i++) {
-		if (!(keys[i] in dict)) {
-			return false;
-		}
-	}
-	return true;
-}
+// ref: https://stackoverflow.com/a/54261558/577298
+// ref: https://stackoverflow.com/a/2274327/577298
+const read_storage = key =>
+	new Promise((resolve, reject) =>
+		chrome.storage.sync.get([key], result =>
+			chrome.runtime.lastError
+				? reject(Error(chrome.runtime.lastError.message))
+				: resolve(result)
+		)
+	)
+
+const write_storage = (key, value) =>
+	new Promise((resolve, reject) =>
+		chrome.storage.sync.set({ [key]: value }, () =>
+			chrome.runtime.lastError
+				? reject(Error(chrome.runtime.lastError.message))
+				: resolve()
+		)
+	)
 
 if (typeof (window) === 'undefined') {
 	// handle console run for testing
@@ -174,25 +185,6 @@ async function get_signature(url) {
 	return signature;
 }
 
-// ref: https://stackoverflow.com/a/54261558/577298
-// ref: https://stackoverflow.com/a/2274327/577298
-const read_storage = key =>
-	new Promise((resolve, reject) =>
-		chrome.storage.sync.get([key], result =>
-			chrome.runtime.lastError
-				? reject(Error(chrome.runtime.lastError.message))
-				: resolve(result)
-		)
-	)
-
-const write_storage = (key, value) =>
-	new Promise((resolve, reject) =>
-		chrome.storage.sync.set({ [key]: value }, () =>
-			chrome.runtime.lastError
-				? reject(Error(chrome.runtime.lastError.message))
-				: resolve()
-		)
-	)
 async function get_pubkey(url) {
 	let pubkey = null;
 
