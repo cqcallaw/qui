@@ -4,10 +4,8 @@
 	"description": "Trust management for distributed websites",
 	"permissions": [
 		"tabs",
-		"activeTab",
 		"declarativeContent",
 		"storage",
-		"webNavigation",
 		"notifications",
 		"*://*.ipfs.localhost/*",
 		"*://*.ipns.localhost/*"

@@ -112,19 +112,13 @@ if (typeof (window) === 'undefined') {
 	chrome.tabs.onActivated.addListener(activeTab => {
 		let tabId = activeTab.tabId;
 		console.log("Activated tab", tabId);
-		/*for (let i = 0; i < url_patterns.length; i++) {
-			url = activeTab.url;
-			console.log("Checking url", url);
-			if (typeof (url) !== 'undefined' && url.indexOf(url_patterns[i]) >= 0) {
-				console.log("Enabling...");
-				chrome.pageAction.show(activeTab.tabId);
-			} else {
-				console.log("Disabling...");
-				chrome.pageAction.hide(activeTab.tabId);
+		url = activeTab.url;
+		if (typeof (url) !== 'undefined') {
+			for (let i = 0; i < urlPatterns.length; i++) {
+				if (url.indexOf(urlPatterns[i]) >= 0) {
+					setIcon(tab_id);
+				}
 			}
-		}*/
-		if (tabId in tabStatus) {
-			setIcon(tabId);
 		}
 	});
 }
@@ -256,7 +250,7 @@ async function getPubkey(url) {
 			requireInteraction: true,
 			title: "Public Key Changed! Trust new key?",
 			message: "Host: " + hostname + "\nKey Fingerprint: " + potential_pubkey.keys[0].getFingerprint(),
-			iconUrl: "images/get_started16.png",
+			iconUrl: "images/error.png",
 			buttons: [
 				{ title: "Yes" },
 				{ title: "No" },
