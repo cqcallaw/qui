@@ -147,8 +147,13 @@ async function get_signature(url) {
 	let response = await fetch(sig_url);
 	if (response.ok) {
 		text = await response.text();
-		signature = await openpgp.signature.readArmored(text);
-		return signature
+		try {
+			signature = await openpgp.signature.readArmored(text);
+			return signature
+		} catch (e) {
+			console.log("Failed to parse signature file", sig_url);
+			// swallow error; we may have a valid binary sig
+		}
 	}
 
 	// Binary signatures
@@ -157,8 +162,13 @@ async function get_signature(url) {
 	response = await fetch(sig_url);
 	if (response.ok) {
 		data = new Uint8Array(await response.arrayBuffer());
-		signature = await openpgp.signature.read(data);
-		return signature
+		try {
+			signature = await openpgp.signature.read(data);
+			return signature
+		} catch (e) {
+			console.log("Failed to parse signature file", sig_url);
+			// swallow error so UI can report error cleanly
+		}
 	}
 
 	return signature;
