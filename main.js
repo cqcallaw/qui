@@ -1,9 +1,7 @@
-var tab_status = {}
-var notification_button_click_state = {}
+var tabStatus = {}
+var notificationButtonClickState = {}
 
-const url_patterns = [".ipfs.localhost", ".ipns.localhost"]
-
-request_timeout = 3000;
+const urlPatterns = [".ipfs.localhost", ".ipns.localhost"]
 
 const sleep = (milliseconds) => {
 	return new Promise(resolve => setTimeout(resolve, milliseconds))
@@ -11,7 +9,7 @@ const sleep = (milliseconds) => {
 
 // ref: https://stackoverflow.com/a/54261558/577298
 // ref: https://stackoverflow.com/a/2274327/577298
-const read_storage = key =>
+const readStorage = key =>
 	new Promise((resolve, reject) =>
 		chrome.storage.sync.get([key], result =>
 			chrome.runtime.lastError
@@ -20,7 +18,7 @@ const read_storage = key =>
 		)
 	)
 
-const write_storage = (key, value) =>
+const writeStorage = (key, value) =>
 	new Promise((resolve, reject) =>
 		chrome.storage.sync.set({ [key]: value }, () =>
 			chrome.runtime.lastError
@@ -30,7 +28,7 @@ const write_storage = (key, value) =>
 	)
 
 const setIcon = (tabId) => {
-	status = tab_status[tabId];
+	status = tabStatus[tabId];
 	if (status === 'verified') {
 		chrome.browserAction.setIcon({
 			path: "images/success.png",
@@ -70,36 +68,36 @@ if (typeof (window) === 'undefined') {
 	// update button click state tracker
 	chrome.notifications.onClosed.addListener(function (notificationId) {
 		console.log("[" + notificationId + "] closed");
-		if (!(notificationId in notification_button_click_state)
-			|| (notification_button_click_state[notificationId] === undefined)
-			|| (notification_button_click_state[notificationId] === -1)) {
+		if (!(notificationId in notificationButtonClickState)
+			|| (notificationButtonClickState[notificationId] === undefined)
+			|| (notificationButtonClickState[notificationId] === -1)) {
 			console.log("[" + notificationId + "] set to default value");
-			notification_button_click_state[notificationId] = -1;
+			notificationButtonClickState[notificationId] = -1;
 		}
 	});
 	chrome.notifications.onClicked.addListener(function (notificationId) {
 		console.log("[" + notificationId + "] clicked");
-		notification_button_click_state[notificationId] = -1;
+		notificationButtonClickState[notificationId] = -1;
 	});
 	chrome.notifications.onButtonClicked.addListener(function (notificationId, buttonIndex) {
 		console.log("[" + notificationId + "]", "button", buttonIndex, "pressed");
-		notification_button_click_state[notificationId] = buttonIndex;
+		notificationButtonClickState[notificationId] = buttonIndex;
 	});
 
 	// launch verification process when tab content is loaded or reloaded
 	chrome.tabs.onUpdated.addListener(function (tab_id, info) {
 		if (info.status === 'complete') {
 			console.log("Finished loading tab", tab_id);
-			tab_status[tab_id] = "loaded";
+			tabStatus[tab_id] = "loaded";
 
 			chrome.tabs.query({ active: true, lastFocusedWindow: true }, tabs => {
 				tabs.forEach(async function (tab, index, array) {
 					if (tab.id == tab_id) {
 						url = tab.url;
-						for (let i = 0; i < url_patterns.length; i++) {
-							if (url.indexOf(url_patterns[i]) >= 0) {
+						for (let i = 0; i < urlPatterns.length; i++) {
+							if (url.indexOf(urlPatterns[i]) >= 0) {
 								console.log("Verifying", tab.url);
-								tab_status[tab_id] = await verify(tab.url);
+								tabStatus[tab_id] = await verify(tab.url);
 								setIcon(tab_id);
 							}
 						}
@@ -123,13 +121,13 @@ if (typeof (window) === 'undefined') {
 				chrome.pageAction.hide(activeTab.tabId);
 			}
 		}*/
-		if (tabId in tab_status) {
+		if (tabId in tabStatus) {
 			setIcon(tabId);
 		}
 	});
 }
 
-async function get_real_url(url) {
+async function getRealUrl(url) {
 	if (url.substr(-1) === '/') {
 		console.log(url, "does not contain path information, checking for real path...")
 		// ref: https://stackoverflow.com/a/10926978/577298
@@ -159,7 +157,7 @@ async function get_real_url(url) {
 	return url;
 }
 
-async function get_signature(url) {
+async function getSignature(url) {
 	let signature = null;
 
 	// ASCII-armored signatures
@@ -195,38 +193,49 @@ async function get_signature(url) {
 	return signature;
 }
 
-async function get_pubkey(url) {
+async function getStoredPubkey(hostname) {
 	let pubkey = null;
-
 	let pubkey_text = null;
 
-	// check for trusted pubkey
-	const hostname = new URL(url).hostname;
 	console.log("Checking for trusted pubkey for", hostname);
 
-	pubkey_text_result = await read_storage(hostname);
+	pubkey_text_result = await readStorage(hostname);
 	if (Object.entries(pubkey_text_result).length !== 0) {
 		pubkey_text = pubkey_text_result[hostname]
 		console.log(pubkey_text);
 		pubkey = await openpgp.key.readArmored(pubkey_text);
 		console.log(pubkey);
 		return pubkey;
-	} else {
-		let temp_url = new URL(url);
-		temp_url.pathname = "pubkey.asc";
-		console.log("Checking for", temp_url.toString());
+	}
 
-		const response = await fetch(temp_url);
-		var potential_pubkey = null;
-		if (response.ok) {
-			pubkey_text = await response.text();
-			potential_pubkey = await openpgp.key.readArmored(pubkey_text);
-		}
+	return null;
+}
 
+async function getPubkey(url) {
+	let pubkey = null;
+	let pubkey_text = null;
+
+	// check for trusted pubkey
+	const hostname = new URL(url).hostname;
+	console.log("Checking for trusted pubkey for", hostname);
+
+	let stored_pubkey = await getStoredPubkey(hostname);
+
+	let pubkey_url = new URL(url);
+	pubkey_url.pathname = "pubkey.asc";
+	console.log("Checking for", pubkey_url.toString());
+	const response = await fetch(pubkey_url);
+	var potential_pubkey = null;
+	if (response.ok) {
+		pubkey_text = await response.text();
+		potential_pubkey = await openpgp.key.readArmored(pubkey_text);
+	}
+
+	let prompt_id = "trust-key-prompt";
+	if (stored_pubkey === null) {
 		// prompt user for pubkey trust
-		const id = "trust-key-prompt";
-		notification_button_click_state[id] = -1;
-		chrome.notifications.create(notificationId = id, options = {
+		notificationButtonClickState[prompt_id] = -1;
+		chrome.notifications.create(notificationId = prompt_id, options = {
 			type: "basic",
 			requireInteraction: true,
 			title: "Trust Public Key?",
@@ -237,32 +246,45 @@ async function get_pubkey(url) {
 				{ title: "No" },
 			],
 		});
+	} else if (potential_pubkey.keys[0].getFingerprint() !== stored_pubkey.keys[0].getFingerprint()) {
+		notificationButtonClickState[prompt_id] = -1;
+		chrome.notifications.create(notificationId = prompt_id, options = {
+			type: "basic",
+			requireInteraction: true,
+			title: "Public Key Changed! Trust new key?",
+			message: "Host: " + hostname + "\nKey Fingerprint: " + potential_pubkey.keys[0].getFingerprint(),
+			iconUrl: "images/get_started16.png",
+			buttons: [
+				{ title: "Yes" },
+				{ title: "No" },
+			],
+		});
+	}
 
-		const sleep_interval = 250;
-		let count = 0;
-		while (!(id in notification_button_click_state)
-			|| (notification_button_click_state[id] === undefined)
-			|| (notification_button_click_state[id] === -1)) {
-			console.log("Waiting for pubkey trust decision...");
-			await sleep(sleep_interval);
-			count += sleep_interval;
-		}
+	const sleep_interval = 250;
+	let count = 0;
+	while (!(prompt_id in notificationButtonClickState)
+		|| (notificationButtonClickState[prompt_id] === undefined)
+		|| (notificationButtonClickState[prompt_id] === -1)) {
+		console.log("Waiting for pubkey trust decision...");
+		await sleep(sleep_interval);
+		count += sleep_interval;
+	}
 
-		if (notification_button_click_state[id] == 0) {
-			pubkey = potential_pubkey;
-			await write_storage(hostname, pubkey_text);
-			console.log("Trusted key", pubkey.keys[0].getFingerprint(), "for host", hostname);
-			const tmp = await read_storage(hostname);
-			console.log("Read result", tmp);
-		} else {
-			console.log("User doesn't trust pubkey.");
-		}
+	if (notificationButtonClickState[prompt_id] == 0) {
+		pubkey = potential_pubkey;
+		await writeStorage(hostname, pubkey_text);
+		console.log("Trusted key", pubkey.keys[0].getFingerprint(), "for host", hostname);
+		const tmp = await readStorage(hostname);
+		console.log("Read result", tmp);
+	} else {
+		console.log("User doesn't trust pubkey.");
 	}
 
 	return pubkey;
 }
 
-async function get_content(url) {
+async function getContent(url) {
 	let message = null;
 
 	const response = await fetch(url);
@@ -280,28 +302,28 @@ async function get_content(url) {
 
 async function verify(url) {
 	// chrome.storage.sync.clear();
-	url = await get_real_url(url);
+	url = await getRealUrl(url);
 	console.log("real url:", url)
 	if (url == null) {
 		console.log("Failed to get real URL.");
 		return 'real-url-fail';
 	}
 
-	const signature = await get_signature(url);
+	const signature = await getSignature(url);
 	console.log("signature:", signature)
 	if (signature == null) {
 		console.log("Failed to obtain signature file.");
 		return 'sig-fail';
 	}
 
-	const pubkey = await get_pubkey(url);
+	const pubkey = await getPubkey(url);
 	console.log("pubkey:", pubkey)
 	if (pubkey == null || typeof (pubkey.err) !== 'undefined') {
 		console.log("Failed to obtain public key.");
 		return 'pubkey-fail';
 	}
 
-	const message = await get_content(url);
+	const message = await getContent(url);
 	console.log("message:", message)
 	if (openpgp.message == null) {
 		console.log("Failed to obtain content.");
