@@ -29,18 +29,31 @@ const write_storage = (key, value) =>
 		)
 	)
 
+const setIcon = (tabId) => {
+	status = tab_status[tabId];
+	if (status === 'verified') {
+		chrome.browserAction.setIcon({
+			path: "images/success.png",
+			tabId: tabId
+		});
+	} else {
+		chrome.browserAction.setIcon({
+			path: "images/error.png",
+			tabId: tabId
+		});
+	}
+}
+
 if (typeof (window) === 'undefined') {
 	// handle console run for testing
-	var XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;;
 	var openpgp = require('openpgp');
 	var fetch = require('node-fetch');
 	verify('http://bafybeid4yuxsupkihtng3um6epzdpccmvk5fot53azgqcexz3pa3evrvue.ipfs.localhost:8080/');
 } else {
 	// handle browser load
 	chrome.runtime.onInstalled.addListener(function () {
-		// chrome.storage.sync.set({ color: '#3aa757' }, function () {
 		console.log("Installed Islands.");
-		// });
+
 		/*chrome.declarativeContent.onPageChanged.removeRules(undefined, function () {
 			chrome.declarativeContent.onPageChanged.addRules([{
 				conditions: [new chrome.declarativeContent.PageStateMatcher({
@@ -87,14 +100,7 @@ if (typeof (window) === 'undefined') {
 							if (url.indexOf(url_patterns[i]) >= 0) {
 								console.log("Verifying", tab.url);
 								tab_status[tab_id] = await verify(tab.url);
-								if (tab_status[tab_id] !== 'verified') {
-									chrome.notifications.create(options = {
-										type: "basic",
-										title: "Verification Result",
-										message: tab_status[tab_id],
-										iconUrl: "images/get_started16.png",
-									});
-								}
+								setIcon(tab_id);
 							}
 						}
 					}
@@ -103,9 +109,10 @@ if (typeof (window) === 'undefined') {
 		}
 	});
 
-	/*chrome.tabs.onActivated.addListener(activeTab => {
-		console.log("Activated tab", activeTab.tabId);
-		for (let i = 0; i < url_patterns.length; i++) {
+	chrome.tabs.onActivated.addListener(activeTab => {
+		let tabId = activeTab.tabId;
+		console.log("Activated tab", tabId);
+		/*for (let i = 0; i < url_patterns.length; i++) {
 			url = activeTab.url;
 			console.log("Checking url", url);
 			if (typeof (url) !== 'undefined' && url.indexOf(url_patterns[i]) >= 0) {
@@ -115,8 +122,11 @@ if (typeof (window) === 'undefined') {
 				console.log("Disabling...");
 				chrome.pageAction.hide(activeTab.tabId);
 			}
+		}*/
+		if (tabId in tab_status) {
+			setIcon(tabId);
 		}
-	});*/
+	});
 }
 
 async function get_real_url(url) {
