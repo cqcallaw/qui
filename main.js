@@ -52,6 +52,8 @@ if (typeof (window) === 'undefined') {
 	chrome.runtime.onInstalled.addListener(function () {
 		console.log("Installed Islands.");
 
+		// chrome.storage.sync.clear();
+
 		/*chrome.declarativeContent.onPageChanged.removeRules(undefined, function () {
 			chrome.declarativeContent.onPageChanged.addRules([{
 				conditions: [new chrome.declarativeContent.PageStateMatcher({
@@ -197,9 +199,10 @@ async function getStoredPubkey(hostname) {
 	let pubkey = null;
 	let pubkey_text = null;
 
-	console.log("Checking for trusted pubkey for", hostname);
+	console.log("Searching trusted key store for ", hostname);
 
 	pubkey_text_result = await readStorage(hostname);
+	console.log("pubkey_text_result", pubkey_text_result);
 	if (Object.entries(pubkey_text_result).length !== 0) {
 		pubkey_text = pubkey_text_result[hostname]
 		console.log(pubkey_text);
@@ -259,6 +262,8 @@ async function getPubkey(url) {
 				{ title: "No" },
 			],
 		});
+	} else {
+		return stored_pubkey;
 	}
 
 	const sleep_interval = 250;
@@ -275,13 +280,11 @@ async function getPubkey(url) {
 		pubkey = potential_pubkey;
 		await writeStorage(hostname, pubkey_text);
 		console.log("Trusted key", pubkey.keys[0].getFingerprint(), "for host", hostname);
-		const tmp = await readStorage(hostname);
-		console.log("Read result", tmp);
+		return pubkey;
 	} else {
 		console.log("User doesn't trust pubkey.");
+		return pubkey;
 	}
-
-	return pubkey;
 }
 
 async function getContent(url) {
@@ -301,7 +304,6 @@ async function getContent(url) {
 }
 
 async function verify(url) {
-	// chrome.storage.sync.clear();
 	url = await getRealUrl(url);
 	console.log("real url:", url)
 	if (url == null) {
