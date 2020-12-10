@@ -30,12 +30,12 @@ const writeStorage = (key, value) =>
 const setIcon = (tabId) => {
 	status = tabStatus[tabId];
 	if (status === 'verified') {
-		chrome.browserAction.setIcon({
+		chrome.pageAction.setIcon({
 			path: "images/success.png",
 			tabId: tabId
 		});
 	} else {
-		chrome.browserAction.setIcon({
+		chrome.pageAction.setIcon({
 			path: "images/error.png",
 			tabId: tabId
 		});
@@ -54,17 +54,18 @@ if (typeof (window) === 'undefined') {
 
 		// chrome.storage.sync.clear();
 
-		/*chrome.declarativeContent.onPageChanged.removeRules(undefined, function () {
+		// only enable extension for IPFS URLs
+		chrome.declarativeContent.onPageChanged.removeRules(undefined, function () {
 			chrome.declarativeContent.onPageChanged.addRules([{
-				conditions: [new chrome.declarativeContent.PageStateMatcher({
-					pageUrl: { hostContains: 'localhost' },
-				})
+				conditions: [
+					new chrome.declarativeContent.PageStateMatcher({pageUrl: { hostContains: ".ipfs.localhost" },}),
+					new chrome.declarativeContent.PageStateMatcher({pageUrl: { hostContains: ".ipns.localhost" },})
 				],
 				actions: [
 					new chrome.declarativeContent.ShowPageAction(),
 				]
 			}]);
-		});*/
+		});
 	});
 
 	// update button click state tracker
