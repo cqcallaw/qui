@@ -6,27 +6,6 @@ const urlPatterns = [".ipfs.localhost", ".ipns.localhost"]
 const sleep = (milliseconds) => {
 	return new Promise(resolve => setTimeout(resolve, milliseconds))
 }
-
-// ref: https://stackoverflow.com/a/54261558/577298
-// ref: https://stackoverflow.com/a/2274327/577298
-const readStorage = key =>
-	new Promise((resolve, reject) =>
-		chrome.storage.sync.get([key], result =>
-			chrome.runtime.lastError
-				? reject(Error(chrome.runtime.lastError.message))
-				: resolve(result)
-		)
-	)
-
-const writeStorage = (key, value) =>
-	new Promise((resolve, reject) =>
-		chrome.storage.sync.set({ [key]: value }, () =>
-			chrome.runtime.lastError
-				? reject(Error(chrome.runtime.lastError.message))
-				: resolve()
-		)
-	)
-
 const setIcon = (tabId) => {
 	status = tabStatus[tabId];
 	if (status === 'verified') {
