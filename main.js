@@ -58,8 +58,8 @@ if (typeof (window) === 'undefined') {
 		chrome.declarativeContent.onPageChanged.removeRules(undefined, function () {
 			chrome.declarativeContent.onPageChanged.addRules([{
 				conditions: [
-					new chrome.declarativeContent.PageStateMatcher({pageUrl: { hostContains: ".ipfs.localhost" },}),
-					new chrome.declarativeContent.PageStateMatcher({pageUrl: { hostContains: ".ipns.localhost" },})
+					new chrome.declarativeContent.PageStateMatcher({ pageUrl: { hostContains: ".ipfs.localhost" }, }),
+					new chrome.declarativeContent.PageStateMatcher({ pageUrl: { hostContains: ".ipns.localhost" }, })
 				],
 				actions: [
 					new chrome.declarativeContent.ShowPageAction(),
@@ -100,6 +100,10 @@ if (typeof (window) === 'undefined') {
 						for (let i = 0; i < urlPatterns.length; i++) {
 							if (url.indexOf(urlPatterns[i]) >= 0) {
 								console.log("Verifying", tab.url);
+								chrome.pageAction.setIcon({
+									path: "images/working.png",
+									tabId: tab_id
+								});
 								tabStatus[tab_id] = await verify(tab.url);
 								setIcon(tab_id);
 							}
