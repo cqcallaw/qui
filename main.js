@@ -173,96 +173,119 @@ async function getSignature(url) {
 	return signature;
 }
 
-async function getStoredPubkey(hostname) {
-	let pubkey = null;
-	let pubkey_text = null;
+async function loadPubkeys() {
+	let pubkeys = []
 
-	console.log("Searching trusted key store for ", hostname);
-
-	pubkey_text_result = await readStorage(hostname);
+	pubkey_text_result = await readStorage('pubkeys');
 	console.log("pubkey_text_result", pubkey_text_result);
 	if (Object.entries(pubkey_text_result).length !== 0) {
-		pubkey_text = pubkey_text_result[hostname]
-		console.log(pubkey_text);
-		pubkey = await openpgp.key.readArmored(pubkey_text);
-		console.log(pubkey);
-		return pubkey;
+		for (const key_text of pubkey_text_result.pubkeys) {
+			let pubkey_result = await openpgp.key.readArmored(key_text);
+			if ('err' in pubkey_result) {
+				console.log("Error parsing pubkey", pubkey_result.err);
+			} else {
+				for (const pubkey of pubkey_result.keys) {
+					pubkeys.push(pubkey);
+				}
+			}
+		}
 	}
 
-	return null;
+	return pubkeys;
 }
 
-async function getPubkey(url) {
+async function storePubkey(pubkey) {
+	// append to existing pubkeys
+	pubkeys = [];
+
+	pubkeys_result = await readStorage('pubkeys');
+	// create default key set if no keys are stored
+	if (Object.entries(pubkeys_result).length !== 0) {
+		pubkeys = pubkeys_result.pubkeys;
+		console.log("Read pubkeys", pubkeys);
+	}
+
+	pubkeys.push(pubkey);
+	return await writeStorage('pubkeys', pubkeys);
+}
+
+async function getPubkeys(url) {
 	let pubkey = null;
 	let pubkey_text = null;
 
-	// check for trusted pubkey
-	const hostname = new URL(url).hostname;
-	console.log("Checking for trusted pubkey for", hostname);
+	let pubkeys = await loadPubkeys();
 
-	let stored_pubkey = await getStoredPubkey(hostname);
+	console.log("Stored pubkeys:", pubkeys);
 
 	let pubkey_url = new URL(url);
 	pubkey_url.pathname = "pubkey.asc";
 	console.log("Checking for", pubkey_url.toString());
 	const response = await fetch(pubkey_url);
-	var potential_pubkey = null;
+	let potential_pubkeys = [];
 	if (response.ok) {
 		pubkey_text = await response.text();
-		potential_pubkey = await openpgp.key.readArmored(pubkey_text);
+		potential_pubkey_result = await openpgp.key.readArmored(pubkey_text);
+		if ('err' in potential_pubkey_result) {
+			console.log("Error parsing pubkey", potential_pubkey.err);
+		} else {
+			for (const pubkey of potential_pubkey_result.keys) {
+				potential_pubkeys.push(pubkey);
+			}
+		}
 	}
 
-	let prompt_id = "trust-key-prompt";
-	if (stored_pubkey === null) {
-		// prompt user for pubkey trust
-		notificationButtonClickState[prompt_id] = -1;
-		chrome.notifications.create(notificationId = prompt_id, options = {
-			type: "basic",
-			requireInteraction: true,
-			title: "Trust Public Key?",
-			message: "Host: " + hostname + "\nKey Fingerprint: " + potential_pubkey.keys[0].getFingerprint(),
-			iconUrl: "images/get_started16.png",
-			buttons: [
-				{ title: "Yes" },
-				{ title: "No" },
-			],
-		});
-	} else if (potential_pubkey.keys[0].getFingerprint() !== stored_pubkey.keys[0].getFingerprint()) {
-		notificationButtonClickState[prompt_id] = -1;
-		chrome.notifications.create(notificationId = prompt_id, options = {
-			type: "basic",
-			requireInteraction: true,
-			title: "Public Key Changed! Trust new key?",
-			message: "Host: " + hostname + "\nKey Fingerprint: " + potential_pubkey.keys[0].getFingerprint(),
-			iconUrl: "images/error.png",
-			buttons: [
-				{ title: "Yes" },
-				{ title: "No" },
-			],
-		});
-	} else {
-		return stored_pubkey;
+	console.log("Potential pubkey", potential_pubkeys);
+
+	for (const potential_pubkey of potential_pubkeys) {
+		let trusted = false;
+		for (const stored_pubkey of pubkeys) {
+			if (potential_pubkey.getFingerprint() === stored_pubkey.getFingerprint()) {
+				console.log("Trusted key");
+				trusted = true;
+			}
+		}
+
+		if (!trusted) {
+			key = potential_pubkey;
+			console.log("Verifying trust for", key);
+
+			// prompt user for pubkey trust
+			let prompt_id = "trust-key-prompt";
+			notificationButtonClickState[prompt_id] = -1;
+			let user = await key.getPrimaryUser();
+			chrome.notifications.create(notificationId = prompt_id, options = {
+				type: "basic",
+				requireInteraction: true,
+				title: "Trust Public Key?",
+				message: "User: " + user.user.userId.userid + "\nFingerprint: " + key.getFingerprint().toUpperCase(),
+				iconUrl: "images/working.png",
+				buttons: [
+					{ title: "Trust" },
+					{ title: "Ignore" },
+				],
+			});
+
+			const sleep_interval = 250;
+			let count = 0;
+			while (!(prompt_id in notificationButtonClickState)
+				|| (notificationButtonClickState[prompt_id] === undefined)
+				|| (notificationButtonClickState[prompt_id] === -1)) {
+				console.log("Waiting for pubkey trust decision...");
+				await sleep(sleep_interval);
+				count += sleep_interval;
+			}
+
+			if (notificationButtonClickState[prompt_id] == 0) {
+				console.log("Trusted key", key.getFingerprint());
+				pubkeys.push(key);
+				await storePubkey(pubkey_text);
+			} else {
+				console.log("User doesn't trust pubkey.");
+			}
+		}
 	}
 
-	const sleep_interval = 250;
-	let count = 0;
-	while (!(prompt_id in notificationButtonClickState)
-		|| (notificationButtonClickState[prompt_id] === undefined)
-		|| (notificationButtonClickState[prompt_id] === -1)) {
-		console.log("Waiting for pubkey trust decision...");
-		await sleep(sleep_interval);
-		count += sleep_interval;
-	}
-
-	if (notificationButtonClickState[prompt_id] == 0) {
-		pubkey = potential_pubkey;
-		await writeStorage(hostname, pubkey_text);
-		console.log("Trusted key", pubkey.keys[0].getFingerprint(), "for host", hostname);
-		return pubkey;
-	} else {
-		console.log("User doesn't trust pubkey.");
-		return pubkey;
-	}
+	return pubkeys;
 }
 
 async function getContent(url) {
@@ -296,9 +319,9 @@ async function verify(url) {
 		return 'sig-fail';
 	}
 
-	const pubkey = await getPubkey(url);
-	console.log("pubkey:", pubkey)
-	if (pubkey == null || typeof (pubkey.err) !== 'undefined') {
+	const pubkeys = await getPubkeys(url);
+	console.log("pubkeys:", pubkeys)
+	if (pubkeys == null || typeof (pubkeys.err) !== 'undefined') {
 		console.log("Failed to obtain public key.");
 		return 'pubkey-fail';
 	}
@@ -313,7 +336,7 @@ async function verify(url) {
 	const verified = await openpgp.verify({
 		message: message,
 		signature: signature,
-		publicKeys: pubkey.keys
+		publicKeys: pubkeys
 	})
 
 	console.log("verified:", verified)

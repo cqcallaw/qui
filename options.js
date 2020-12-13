@@ -1,43 +1,66 @@
-function removeKey(hostname) {
-	console.log("Removing host entry", hostname);
-	if (confirm('Delete host entry' + hostname + '?')) {
+async function removeKey(index, fingerprint) {
+	console.log("Removing key", fingerprint);
+	if (confirm('Delete key with fingerprint ' + fingerprint.toUpperCase() + '?')) {
 		console.log('Begin removal');
-		chrome.storage.sync.remove(hostname);
+
+		let out = []
+		let pubkeys = await readStorage('pubkeys');
+		for (let i = 0; i < pubkeys.length; i++) {
+			if (i != index) {
+				out.push(pubkeys[i]);
+			}
+		}
+
+		console.log("output", pubkeys);
+
+		await writeStorage('pubkeys', out)
+
 	} else {
 		console.log('User cancelled host removal.');
 	}
 }
 
 async function generateKeyList() {
-	chrome.storage.sync.get(null, async function (entries) {
-		let keyList = document.getElementById('key-list');
-		keyList.textContent = '';
-		for (let hostname in entries) {
-			console.log("Found hostname", hostname);
+	console.log("Generating key list");
+	let keyList = document.getElementById('key-list');
+	keyList.textContent = '';
+	let pubkey_result = await readStorage('pubkeys');
+	let pubkeys = pubkey_result.pubkeys;
+	console.log("Stored pubkeys", pubkeys);
+	for (let i = 0; i < pubkeys.length; i++) {
+		let pubkey_text = pubkeys[i];
+		let pubkey_result = await openpgp.key.readArmored(pubkey_text);
+		if ('err' in pubkey_result) {
+			console.log("Error parsing pubkey", pubkey_result.err);
+		} else {
+			for (const pubkey of pubkey_result.keys) {
+				// add fingerprint
+				let fingerprintElement = document.createElement('dt');
+				let fingerprint = pubkey.getFingerprint();
+				fingerprintElement.appendChild(document.createTextNode(fingerprint.toUpperCase()));
 
-			// add hostname
-			let keyElement = document.createElement('dt');
-			keyElement.appendChild(document.createTextNode(hostname));
-			keyList.appendChild(keyElement);
+				// add delete button
+				let delButton = document.createElement('input');
+				delButton.type = 'button';
+				delButton.value = 'Remove';
+				delButton.className = 'remove';
+				delButton.onclick = () => removeKey(i, fingerprint);
+				fingerprintElement.appendChild(delButton);
 
-			// add pubkey fingerprint
-			let pubkey = await openpgp.key.readArmored(entries[hostname])
-			let fingerprint = pubkey.keys[0].getFingerprint();
-			fingerprint = addDelimiter(fingerprint, ' ', 4).toUpperCase();
-			let valueElement = document.createElement('dd');
-			valueElement.appendChild(document.createTextNode(fingerprint));
+				keyList.appendChild(fingerprintElement);
 
-			// add delete button
-			let delButton = document.createElement('input');
-			delButton.type = 'button';
-			delButton.value = 'Remove';
-			delButton.className = 'remove';
-			delButton.onclick = () => removeKey(hostname);
-			valueElement.appendChild(delButton);
-
-			keyList.appendChild(valueElement);
+				// add user IDs
+				let userIds = pubkey.getUserIds();
+				// add in reverse order; primary UID is last in the array
+				for (let j = userIds.length - 1; j >= 0; j--) {
+					let userIdElement = document.createElement('dd');
+					userIdElement.className = 'user_id';
+					userIdElement.appendChild(document.createTextNode(userIds[j]));
+					keyList.appendChild(userIdElement);
+				}
+			}
 		}
-	});
+	}
 }
 
 chrome.storage.onChanged.addListener(function (changes, namespace) {
@@ -45,4 +68,6 @@ chrome.storage.onChanged.addListener(function (changes, namespace) {
 	generateKeyList();
 });
 
-generateKeyList();
+window.addEventListener('load', (event) => {
+	generateKeyList();
+});
