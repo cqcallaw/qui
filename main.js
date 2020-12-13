@@ -182,7 +182,7 @@ async function loadPubkeys() {
 		for (const key_text of pubkey_text_result.pubkeys) {
 			let pubkey_result = await openpgp.key.readArmored(key_text);
 			if ('err' in pubkey_result) {
-				console.error("Error parsing pubkey", pubkey_result.err);
+				console.log("Error parsing pubkey", pubkey_result.err);
 			} else {
 				for (const pubkey of pubkey_result.keys) {
 					pubkeys.push(pubkey);
@@ -266,13 +266,11 @@ async function getPubkeys(url) {
 			});
 
 			const sleep_interval = 250;
-			let count = 0;
 			while (!(prompt_id in notificationButtonClickState)
 				|| (notificationButtonClickState[prompt_id] === undefined)
 				|| (notificationButtonClickState[prompt_id] === -1)) {
 				console.info("Waiting for pubkey trust decision...");
 				await sleep(sleep_interval);
-				count += sleep_interval;
 			}
 
 			if (notificationButtonClickState[prompt_id] == 0) {
@@ -345,8 +343,8 @@ async function verify(url) {
 		console.log('Verified signature by key id ' + verified.signatures[0].keyid.toHex());
 		return 'verified';
 	} else {
-		console.error('Failed to verify', url);
-		console.error(verified);
+		console.log('Failed to verify', url);
+		console.log(verified);
 		return 'verify-fail';
 	}
 }
