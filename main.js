@@ -49,27 +49,27 @@ if (typeof (window) === 'undefined') {
 
 	// update button click state tracker
 	chrome.notifications.onClosed.addListener(function (notificationId) {
-		console.log("[" + notificationId + "] closed");
+		console.info("[" + notificationId + "] closed");
 		if (!(notificationId in notificationButtonClickState)
 			|| (notificationButtonClickState[notificationId] === undefined)
 			|| (notificationButtonClickState[notificationId] === -1)) {
-			console.log("[" + notificationId + "] set to default value");
+			console.info("[" + notificationId + "] set to default value");
 			notificationButtonClickState[notificationId] = -1;
 		}
 	});
 	chrome.notifications.onClicked.addListener(function (notificationId) {
-		console.log("[" + notificationId + "] clicked");
+		console.info("[" + notificationId + "] clicked");
 		notificationButtonClickState[notificationId] = -1;
 	});
 	chrome.notifications.onButtonClicked.addListener(function (notificationId, buttonIndex) {
-		console.log("[" + notificationId + "]", "button", buttonIndex, "pressed");
+		console.info("[" + notificationId + "]", "button", buttonIndex, "pressed");
 		notificationButtonClickState[notificationId] = buttonIndex;
 	});
 
 	// launch verification process when tab content is loaded or reloaded
 	chrome.tabs.onUpdated.addListener(function (tab_id, info) {
 		if (info.status === 'complete') {
-			console.log("Finished loading tab", tab_id);
+			// console.log("Finished loading tab", tab_id);
 			tabStatus[tab_id] = "loaded";
 
 			chrome.tabs.query({ active: true, lastFocusedWindow: true }, tabs => {
@@ -95,7 +95,7 @@ if (typeof (window) === 'undefined') {
 
 	chrome.tabs.onActivated.addListener(activeTab => {
 		let tabId = activeTab.tabId;
-		console.log("Activated tab", tabId);
+		console.info("Activated tab", tabId);
 		url = activeTab.url;
 		if (typeof (url) !== 'undefined') {
 			for (let i = 0; i < urlPatterns.length; i++) {
@@ -142,7 +142,7 @@ async function getSignature(url) {
 
 	// ASCII-armored signatures
 	let sig_url = url + ".asc"
-	console.log("Checking for", sig_url);
+	console.info("Checking for", sig_url);
 	let response = await fetch(sig_url);
 	if (response.ok) {
 		text = await response.text();
@@ -157,7 +157,7 @@ async function getSignature(url) {
 
 	// Binary signatures
 	sig_url = url + ".sig"
-	console.log("Checking for", sig_url);
+	console.info("Checking for", sig_url);
 	response = await fetch(sig_url);
 	if (response.ok) {
 		data = new Uint8Array(await response.arrayBuffer());
@@ -177,12 +177,12 @@ async function loadPubkeys() {
 	let pubkeys = []
 
 	pubkey_text_result = await readStorage('pubkeys');
-	console.log("pubkey_text_result", pubkey_text_result);
+	console.info("pubkey_text_result", pubkey_text_result);
 	if (Object.entries(pubkey_text_result).length !== 0) {
 		for (const key_text of pubkey_text_result.pubkeys) {
 			let pubkey_result = await openpgp.key.readArmored(key_text);
 			if ('err' in pubkey_result) {
-				console.log("Error parsing pubkey", pubkey_result.err);
+				console.error("Error parsing pubkey", pubkey_result.err);
 			} else {
 				for (const pubkey of pubkey_result.keys) {
 					pubkeys.push(pubkey);
@@ -202,7 +202,7 @@ async function storePubkey(pubkey) {
 	// create default key set if no keys are stored
 	if (Object.entries(pubkeys_result).length !== 0) {
 		pubkeys = pubkeys_result.pubkeys;
-		console.log("Read pubkeys", pubkeys);
+		console.info("Read pubkeys", pubkeys);
 	}
 
 	pubkeys.push(pubkey);
@@ -215,11 +215,11 @@ async function getPubkeys(url) {
 
 	let pubkeys = await loadPubkeys();
 
-	console.log("Stored pubkeys:", pubkeys);
+	console.info("Stored pubkeys:", pubkeys);
 
 	let pubkey_url = new URL(url);
 	pubkey_url.pathname = "pubkey.asc";
-	console.log("Checking for", pubkey_url.toString());
+	console.info("Checking for", pubkey_url.toString());
 	const response = await fetch(pubkey_url);
 	let potential_pubkeys = [];
 	if (response.ok) {
@@ -234,20 +234,20 @@ async function getPubkeys(url) {
 		}
 	}
 
-	console.log("Potential pubkey", potential_pubkeys);
+	console.info("Potential pubkey", potential_pubkeys);
 
 	for (const potential_pubkey of potential_pubkeys) {
 		let trusted = false;
 		for (const stored_pubkey of pubkeys) {
 			if (potential_pubkey.getFingerprint() === stored_pubkey.getFingerprint()) {
-				console.log("Trusted key");
+				console.info(potential_pubkey.getFingerprint(), "is trusted.");
 				trusted = true;
 			}
 		}
 
 		if (!trusted) {
 			key = potential_pubkey;
-			console.log("Verifying trust for", key);
+			console.info("Verifying trust for", key);
 
 			// prompt user for pubkey trust
 			let prompt_id = "trust-key-prompt";
@@ -270,7 +270,7 @@ async function getPubkeys(url) {
 			while (!(prompt_id in notificationButtonClickState)
 				|| (notificationButtonClickState[prompt_id] === undefined)
 				|| (notificationButtonClickState[prompt_id] === -1)) {
-				console.log("Waiting for pubkey trust decision...");
+				console.info("Waiting for pubkey trust decision...");
 				await sleep(sleep_interval);
 				count += sleep_interval;
 			}
@@ -345,8 +345,8 @@ async function verify(url) {
 		console.log('Verified signature by key id ' + verified.signatures[0].keyid.toHex());
 		return 'verified';
 	} else {
-		console.log('Failed to verify', url);
-		console.log(verified);
+		console.error('Failed to verify', url);
+		console.error(verified);
 		return 'verify-fail';
 	}
 }
