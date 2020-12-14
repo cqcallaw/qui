@@ -33,24 +33,6 @@ if (typeof (window) === 'undefined') {
 
 		// chrome.storage.sync.clear();
 
-		chrome.runtime.onMessage.addListener(
-			function (request, sender, sendResponse) {
-				console.log("[background] Got request", request);
-				if (request.id == "tab_status") {
-					chrome.tabs.query({ active: true, lastFocusedWindow: true }, tabs => {
-						console.log("[background] tab query response", tabs);
-						activeTab = tabs[0]
-						let response = { id: "tab_status", status: tabStatus[activeTab.id] };
-						console.log("[background] Sending response", response);
-						sendResponse(response);
-					});
-
-					// ref: https://support.google.com/chrome/thread/2047906?hl=en
-					return true;
-				}
-			}
-		);
-
 		// only enable extension for IPFS URLs
 		chrome.declarativeContent.onPageChanged.removeRules(undefined, function () {
 			chrome.declarativeContent.onPageChanged.addRules([{
@@ -363,3 +345,21 @@ async function verify(url) {
 		return 'verify-fail';
 	}
 }
+
+chrome.runtime.onMessage.addListener(
+	function (request, sender, sendResponse) {
+		console.log("[background] Got request", request);
+		if (request.id == "tab_status") {
+			chrome.tabs.query({ active: true, lastFocusedWindow: true }, tabs => {
+				console.log("[background] tab query response", tabs);
+				activeTab = tabs[0]
+				let response = { id: "tab_status", status: tabStatus[activeTab.id] };
+				console.log("[background] Sending response", response);
+				sendResponse(response);
+			});
+
+			// ref: https://support.google.com/chrome/thread/2047906?hl=en
+			return true;
+		}
+	}
+);
