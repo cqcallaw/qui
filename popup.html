@@ -3,12 +3,29 @@
 
 <head>
 	<style>
+		body {
+			min-width: 15em;
+		}
+
+		#message {
+			border-bottom: 1px solid black;
+			font-size:larger;
+		}
+
+		#settings {
+			margin-top: 1em;
+			background: transparent url(/images/settings.png) center left no-repeat;
+			padding-left: 20px;
+			height: 20px;
+			line-height: 20px;
+			vertical-align: middle;
+		}
 	</style>
 </head>
 
 <body>
-	<div id="message">Default Message</div>
-	<div><a href="/options.html">Options</a></div>
+	<div id="message">Status: unknown</div>
+	<div id="settings"><a href="/options.html" target="_blank">Settings</a></div>
 	<script src="popup.js"></script>
 </body>
 

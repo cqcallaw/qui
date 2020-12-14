@@ -1,6 +1,15 @@
 var tabStatus = {}
 var notificationButtonClickState = {}
 
+const statusMap = {
+	real_url_fail: "No real URL found",
+	sig_fail: "No signature found",
+	pubkey_fail: "Failed to obtain public key",
+	content_fail: "Failed to read signed content",
+	verified: "Verification succeeded",
+	verify_fail: "Verification Failed"
+}
+
 const urlPatterns = [".ipfs.localhost", ".ipns.localhost"]
 
 const sleep = (milliseconds) => {
@@ -83,7 +92,9 @@ if (typeof (window) === 'undefined') {
 									path: "images/working.png",
 									tabId: tab_id
 								});
-								tabStatus[tab_id] = await verify(tab.url);
+								var result = await verify(tab.url);
+								tabStatus[tab_id] = result;
+								console.log(statusMap[result]);
 								setIcon(tab_id);
 							}
 						}
@@ -303,29 +314,25 @@ async function verify(url) {
 	url = await getRealUrl(url);
 	console.log("real url:", url)
 	if (url == null) {
-		console.log("Failed to get real URL.");
-		return 'real-url-fail';
+		return 'real_url_fail';
 	}
 
 	const signature = await getSignature(url);
 	console.log("signature:", signature)
 	if (signature == null) {
-		console.log("Failed to obtain signature file.");
-		return 'sig-fail';
+		return 'sig_fail';
 	}
 
 	const pubkeys = await getPubkeys(url);
 	console.log("pubkeys:", pubkeys)
 	if (pubkeys == null || typeof (pubkeys.err) !== 'undefined') {
-		console.log("Failed to obtain public key.");
-		return 'pubkey-fail';
+		return 'pubkey_fail';
 	}
 
 	const message = await getContent(url);
 	console.log("message:", message)
 	if (openpgp.message == null) {
-		console.log("Failed to obtain content.");
-		return 'content-fail';
+		return 'content_fail';
 	}
 
 	const verified = await openpgp.verify({
@@ -340,9 +347,8 @@ async function verify(url) {
 		console.log('Verified signature by key id ' + verified.signatures[0].keyid.toHex());
 		return 'verified';
 	} else {
-		console.log('Failed to verify', url);
 		console.log(verified);
-		return 'verify-fail';
+		return 'verify_fail';
 	}
 }
 
@@ -353,7 +359,10 @@ chrome.runtime.onMessage.addListener(
 			chrome.tabs.query({ active: true, lastFocusedWindow: true }, tabs => {
 				console.log("[background] tab query response", tabs);
 				activeTab = tabs[0]
-				let response = { id: "tab_status", status: tabStatus[activeTab.id] };
+				console.log("Active Tab ID", activeTab.id);
+				console.log("Active Tab Status", tabStatus[activeTab.id]);
+				console.log("Active Tab Status Text", statusMap[tabStatus[activeTab.id]]);
+				let response = { id: "tab_status", status: statusMap[tabStatus[activeTab.id]] };
 				console.log("[background] Sending response", response);
 				sendResponse(response);
 			});

@@ -3,6 +3,6 @@ chrome.runtime.sendMessage({ id: "tab_status" }, function (response) {
 	if (response.id == 'tab_status') {
 		console.log("[popup] Got status", response.status);
 		let messageElement = document.getElementById('message');
-		messageElement.innerHTML = "Status: " + response.status;
+		messageElement.innerHTML = response.status;
 	}
 });
