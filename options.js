@@ -37,7 +37,7 @@ async function generateKeyList() {
 				// add fingerprint
 				let fingerprintElement = document.createElement('dt');
 				let fingerprint = pubkey.getFingerprint();
-				fingerprintElement.appendChild(document.createTextNode(fingerprint.toUpperCase()));
+				fingerprintElement.innerHTML = fingerprint.toUpperCase();
 
 				// add delete button
 				let delButton = document.createElement('input');

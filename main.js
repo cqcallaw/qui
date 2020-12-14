@@ -22,6 +22,12 @@ const setIcon = (tabId) => {
 			path: "images/success.png",
 			tabId: tabId
 		});
+	}
+	else if (status === 'verifying') {
+		chrome.pageAction.setIcon({
+			path: "images/working.png",
+			tabId: tabId
+		});
 	} else {
 		chrome.pageAction.setIcon({
 			path: "images/error.png",
@@ -76,46 +82,38 @@ if (typeof (window) === 'undefined') {
 	});
 
 	// launch verification process when tab content is loaded or reloaded
-	chrome.tabs.onUpdated.addListener(function (tab_id, info) {
+	chrome.tabs.onUpdated.addListener(function (tabId, info) {
 		if (info.status === 'complete') {
-			// console.log("Finished loading tab", tab_id);
-			tabStatus[tab_id] = "loaded";
-
-			chrome.tabs.query({ active: true, lastFocusedWindow: true }, tabs => {
-				tabs.forEach(async function (tab, index, array) {
-					if (tab.id == tab_id) {
-						url = tab.url;
-						for (let i = 0; i < urlPatterns.length; i++) {
-							if (url.indexOf(urlPatterns[i]) >= 0) {
-								console.log("Verifying", tab.url);
-								chrome.pageAction.setIcon({
-									path: "images/working.png",
-									tabId: tab_id
-								});
-								var result = await verify(tab.url);
-								tabStatus[tab_id] = result;
-								console.log(statusMap[result]);
-								setIcon(tab_id);
-							}
-						}
-					}
-				})
-			});
+			triggerVerify();
 		}
 	});
 
+	// launch verification process if tab is switched
 	chrome.tabs.onActivated.addListener(activeTab => {
-		let tabId = activeTab.tabId;
-		console.info("Activated tab", tabId);
-		url = activeTab.url;
-		if (typeof (url) !== 'undefined') {
-			for (let i = 0; i < urlPatterns.length; i++) {
-				if (url.indexOf(urlPatterns[i]) >= 0) {
-					setIcon(tab_id);
-				}
+		console.info("Activated tab", activeTab);
+		if (!(activeTab.tabId in tabStatus)) {
+			triggerVerify();
+		}
+	});
+
+	// handle requests for status from popup
+	chrome.runtime.onMessage.addListener(
+		function (request, sender, sendResponse) {
+			console.log("[background] Got request", request);
+			if (request.id == "tab_status") {
+				chrome.tabs.query({ active: true, lastFocusedWindow: true }, tabs => {
+					console.log("[background] tab query response", tabs);
+					activeTab = tabs[0]
+					let response = { id: "tab_status", status: statusMap[tabStatus[activeTab.id]] };
+					console.log("[background] Sending response", response);
+					sendResponse(response);
+				});
+
+				// ref: https://support.google.com/chrome/thread/2047906?hl=en
+				return true;
 			}
 		}
-	});
+	);
 }
 
 async function getRealUrl(url) {
@@ -352,23 +350,23 @@ async function verify(url) {
 	}
 }
 
-chrome.runtime.onMessage.addListener(
-	function (request, sender, sendResponse) {
-		console.log("[background] Got request", request);
-		if (request.id == "tab_status") {
-			chrome.tabs.query({ active: true, lastFocusedWindow: true }, tabs => {
-				console.log("[background] tab query response", tabs);
-				activeTab = tabs[0]
-				console.log("Active Tab ID", activeTab.id);
-				console.log("Active Tab Status", tabStatus[activeTab.id]);
-				console.log("Active Tab Status Text", statusMap[tabStatus[activeTab.id]]);
-				let response = { id: "tab_status", status: statusMap[tabStatus[activeTab.id]] };
-				console.log("[background] Sending response", response);
-				sendResponse(response);
-			});
-
-			// ref: https://support.google.com/chrome/thread/2047906?hl=en
-			return true;
-		}
-	}
-);
+async function triggerVerify() {
+	chrome.tabs.query({ active: true, lastFocusedWindow: true }, tabs => {
+		tabs.forEach(async function (tab, index, array) {
+			url = tab.url;
+			// only run if we match a pattern;
+			// the background page of the extension runs even if the current page action is disabled
+			for (let i = 0; i < urlPatterns.length; i++) {
+				if (url.indexOf(urlPatterns[i]) >= 0) {
+					console.log("Verifying", tab.url);
+					tabStatus[tab.id] = "verifying"
+					setIcon(tab.id);
+					var result = await verify(tab.url);
+					tabStatus[tab.id] = result;
+					console.log(statusMap[result]);
+					setIcon(tab.id);
+				}
+			}
+		})
+	});
+}
