@@ -7,7 +7,8 @@ const statusMap = {
 	pubkey_fail: "Failed to obtain public key",
 	content_fail: "Failed to read signed content",
 	verified: "Verification succeeded",
-	verify_fail: "Verification Failed"
+	verifying: "Verification in progress",
+	verify_fail: "Verification failed"
 }
 
 const urlPatterns = [".ipfs.localhost", ".ipns.localhost"]
