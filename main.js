@@ -49,6 +49,9 @@ if (typeof (window) === 'undefined') {
 
 		// chrome.storage.local.clear();
 
+		// set defaults
+		writeStorage('trust_prompt', true);
+
 		// only enable extension for IPFS URLs
 		chrome.declarativeContent.onPageChanged.removeRules(undefined, function () {
 			chrome.declarativeContent.onPageChanged.addRules([{
@@ -222,6 +225,12 @@ async function getPubkeys(url) {
 	let pubkey_text = null;
 
 	let pubkeys = await loadTrustedPubkeys();
+
+	let trust_prompt_result = await readStorage('trust_prompt');
+	let trust_prompt = trust_prompt_result.trust_prompt;
+	if (!trust_prompt) {
+		return pubkeys;
+	}
 
 	let pubkey_url = new URL(url);
 	pubkey_url.pathname = "pubkey.asc";

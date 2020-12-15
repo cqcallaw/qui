@@ -26,41 +26,52 @@ async function generateKeyList(keyClass) {
 	keyList.textContent = '';
 	let pubkey_result = await readStorage(keyClass);
 	let pubkeys = pubkey_result[keyClass];
-	console.log("Stored pubkeys", pubkeys);
-	for (let i = 0; i < pubkeys.length; i++) {
-		let pubkey_text = pubkeys[i];
-		let pubkey_result = await openpgp.key.readArmored(pubkey_text);
-		if ('err' in pubkey_result) {
-			console.log("Error parsing pubkey", pubkey_result.err);
-		} else {
-			for (const pubkey of pubkey_result.keys) {
-				// add fingerprint
-				let fingerprintElement = document.createElement('dt');
-				let fingerprint = pubkey.getFingerprint();
-				fingerprintElement.innerHTML = fingerprint.toUpperCase();
+	if (typeof (pubkeys) !== 'undefined') {
+		for (let i = 0; i < pubkeys.length; i++) {
+			let pubkey_text = pubkeys[i];
+			let pubkey_result = await openpgp.key.readArmored(pubkey_text);
+			if ('err' in pubkey_result) {
+				console.log("Error parsing pubkey", pubkey_result.err);
+			} else {
+				for (const pubkey of pubkey_result.keys) {
+					// add fingerprint
+					let fingerprintElement = document.createElement('dt');
+					let fingerprint = pubkey.getFingerprint();
+					fingerprintElement.innerHTML = fingerprint.toUpperCase();
 
-				// add delete button
-				let delButton = document.createElement('input');
-				delButton.type = 'button';
-				delButton.value = 'Remove';
-				delButton.className = 'remove';
-				delButton.onclick = () => removeKey(keyClass, i, fingerprint);
-				fingerprintElement.appendChild(delButton);
+					// add delete button
+					let delButton = document.createElement('input');
+					delButton.type = 'button';
+					delButton.value = 'Remove';
+					delButton.className = 'remove';
+					delButton.onclick = () => removeKey(keyClass, i, fingerprint);
+					fingerprintElement.appendChild(delButton);
 
-				keyList.appendChild(fingerprintElement);
+					keyList.appendChild(fingerprintElement);
 
-				// add user IDs
-				let userIds = pubkey.getUserIds();
-				// add in reverse order; primary UID is last in the array
-				for (let j = userIds.length - 1; j >= 0; j--) {
-					let userIdElement = document.createElement('dd');
-					userIdElement.className = 'user_id';
-					userIdElement.appendChild(document.createTextNode(userIds[j]));
-					keyList.appendChild(userIdElement);
+					// add user IDs
+					let userIds = pubkey.getUserIds();
+					// add in reverse order; primary UID is last in the array
+					for (let j = userIds.length - 1; j >= 0; j--) {
+						let userIdElement = document.createElement('dd');
+						userIdElement.className = 'user_id';
+						userIdElement.appendChild(document.createTextNode(userIds[j]));
+						keyList.appendChild(userIdElement);
+					}
 				}
 			}
 		}
 	}
+}
+
+async function setupOptions() {
+	let trustPromptResult = await readStorage('trust_prompt');
+	let trustPrompt = trustPromptResult.trust_prompt;
+	let trustPromptElement = document.getElementById('trust_prompt');
+	trustPromptElement.checked = trustPrompt;
+	trustPromptElement.addEventListener('change', function () {
+		writeStorage('trust_prompt', this.checked);
+	});
 }
 
 chrome.storage.onChanged.addListener(function (changes, namespace) {
@@ -70,4 +81,5 @@ chrome.storage.onChanged.addListener(function (changes, namespace) {
 
 window.addEventListener('load', (event) => {
 	generateKeyList('trusted');
+	setupOptions();
 });
