@@ -47,7 +47,7 @@ if (typeof (window) === 'undefined') {
 	chrome.runtime.onInstalled.addListener(function () {
 		console.log("Installed Islands.");
 
-		// chrome.storage.sync.clear();
+		// chrome.storage.local.clear();
 
 		// only enable extension for IPFS URLs
 		chrome.declarativeContent.onPageChanged.removeRules(undefined, function () {

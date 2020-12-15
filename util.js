@@ -15,7 +15,7 @@ function addDelimiter(str, delimiter, n) {
 // ref: https://stackoverflow.com/a/2274327/577298
 const readStorage = key =>
 	new Promise((resolve, reject) =>
-		chrome.storage.sync.get([key], result =>
+		chrome.storage.local.get([key], result =>
 			chrome.runtime.lastError
 				? reject(Error(chrome.runtime.lastError.message))
 				: resolve(result)
@@ -24,7 +24,7 @@ const readStorage = key =>
 
 const writeStorage = (key, value) =>
 	new Promise((resolve, reject) =>
-		chrome.storage.sync.set({ [key]: value }, () =>
+		chrome.storage.local.set({ [key]: value }, () =>
 			chrome.runtime.lastError
 				? reject(Error(chrome.runtime.lastError.message))
 				: resolve()
