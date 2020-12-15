@@ -1,31 +1,31 @@
-async function removeKey(index, fingerprint) {
+async function removeKey(keyClass, index, fingerprint) {
 	console.log("Removing key", fingerprint);
 	if (confirm('Delete key with fingerprint ' + fingerprint.toUpperCase() + '?')) {
 		console.log('Begin removal');
 
 		let out = []
-		let pubkeys = await readStorage('pubkeys');
+		let pubkeys = await readStorage(keyClass);
 		for (let i = 0; i < pubkeys.length; i++) {
 			if (i != index) {
-				out.push(pubkeys[i]);
+				out.push(pubkeys[keyClass][i]);
 			}
 		}
 
 		console.log("output", pubkeys);
 
-		await writeStorage('pubkeys', out)
+		await writeStorage(keyClass, out)
 
 	} else {
 		console.log('User cancelled host removal.');
 	}
 }
 
-async function generateKeyList() {
-	console.log("Generating key list");
-	let keyList = document.getElementById('key-list');
+async function generateKeyList(keyClass) {
+	console.log("Generating key list for class", keyClass);
+	let keyList = document.getElementById(keyClass);
 	keyList.textContent = '';
-	let pubkey_result = await readStorage('pubkeys');
-	let pubkeys = pubkey_result.pubkeys;
+	let pubkey_result = await readStorage(keyClass);
+	let pubkeys = pubkey_result[keyClass];
 	console.log("Stored pubkeys", pubkeys);
 	for (let i = 0; i < pubkeys.length; i++) {
 		let pubkey_text = pubkeys[i];
@@ -44,7 +44,7 @@ async function generateKeyList() {
 				delButton.type = 'button';
 				delButton.value = 'Remove';
 				delButton.className = 'remove';
-				delButton.onclick = () => removeKey(i, fingerprint);
+				delButton.onclick = () => removeKey(keyClass, i, fingerprint);
 				fingerprintElement.appendChild(delButton);
 
 				keyList.appendChild(fingerprintElement);
@@ -65,9 +65,9 @@ async function generateKeyList() {
 
 chrome.storage.onChanged.addListener(function (changes, namespace) {
 	console.log("Storage change, reloading...");
-	generateKeyList();
+	generateKeyList('trusted');
 });
 
 window.addEventListener('load', (event) => {
-	generateKeyList();
+	generateKeyList('trusted');
 });

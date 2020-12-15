@@ -183,13 +183,13 @@ async function getSignature(url) {
 	return signature;
 }
 
-async function loadPubkeys() {
+async function loadTrustedPubkeys() {
 	let pubkeys = []
 
-	pubkey_text_result = await readStorage('pubkeys');
+	pubkey_text_result = await readStorage('trusted');
 	console.info("pubkey_text_result", pubkey_text_result);
 	if (Object.entries(pubkey_text_result).length !== 0) {
-		for (const key_text of pubkey_text_result.pubkeys) {
+		for (const key_text of pubkey_text_result.trusted) {
 			let pubkey_result = await openpgp.key.readArmored(key_text);
 			if ('err' in pubkey_result) {
 				console.log("Error parsing pubkey", pubkey_result.err);
@@ -204,27 +204,24 @@ async function loadPubkeys() {
 	return pubkeys;
 }
 
-async function storePubkey(pubkey) {
-	// append to existing pubkeys
+async function trustPubkey(pubkey) {
 	pubkeys = [];
 
-	pubkeys_result = await readStorage('pubkeys');
+	pubkeys_result = await readStorage('trusted');
 	// create default key set if no keys are stored
 	if (Object.entries(pubkeys_result).length !== 0) {
-		pubkeys = pubkeys_result.pubkeys;
+		pubkeys = pubkeys_result.trusted;
 		console.info("Read pubkeys", pubkeys);
 	}
 
 	pubkeys.push(pubkey);
-	return await writeStorage('pubkeys', pubkeys);
+	return await writeStorage('trusted', pubkeys);
 }
 
 async function getPubkeys(url) {
 	let pubkey_text = null;
 
-	let pubkeys = await loadPubkeys();
-
-	console.info("Stored pubkeys:", pubkeys);
+	let pubkeys = await loadTrustedPubkeys();
 
 	let pubkey_url = new URL(url);
 	pubkey_url.pathname = "pubkey.asc";
@@ -283,9 +280,9 @@ async function getPubkeys(url) {
 			}
 
 			if (notificationButtonClickState[prompt_id] == 0) {
-				console.log("Trusted key", key.getFingerprint());
+				console.log("Trusting key", key.getFingerprint());
 				pubkeys.push(key);
-				await storePubkey(pubkey_text);
+				await trustPubkey(pubkey_text);
 			} else {
 				console.log("User doesn't trust pubkey.");
 			}
