@@ -1,13 +1,16 @@
 async function removeKey(keyClass, index, fingerprint) {
 	console.log("Removing key", fingerprint);
 	if (confirm('Delete key with fingerprint ' + fingerprint.toUpperCase() + '?')) {
-		console.log('Begin removal');
+		console.log('Begin removal at index', index);
 
 		let out = []
-		let pubkeys = await readStorage(keyClass);
+		let stored_pubkey_result = await readStorage(keyClass);
+		console.log("Stored pubkey result", stored_pubkey_result);
+		let pubkeys = stored_pubkey_result[keyClass];
+		console.log("Stored pubkeys", pubkeys);
 		for (let i = 0; i < pubkeys.length; i++) {
 			if (i != index) {
-				out.push(pubkeys[keyClass][i]);
+				out.push(pubkeys[i]);
 			}
 		}
 
@@ -24,16 +27,21 @@ async function generateKeyList(keyClass) {
 	console.log("Generating key list for class", keyClass);
 	let keyList = document.getElementById(keyClass);
 	keyList.textContent = '';
-	let pubkey_result = await readStorage(keyClass);
-	let pubkeys = pubkey_result[keyClass];
+	let stored_pubkey_result = await readStorage(keyClass);
+	console.log("Got raw stored pubkey result", stored_pubkey_result);
+	let pubkeys = stored_pubkey_result[keyClass];
+	console.log("Got stored pubkey list", pubkeys);
 	if (typeof (pubkeys) !== 'undefined') {
 		for (let i = 0; i < pubkeys.length; i++) {
+			console.log(i);
 			let pubkey_text = pubkeys[i];
 			let pubkey_result = await openpgp.key.readArmored(pubkey_text);
 			if ('err' in pubkey_result) {
 				console.log("Error parsing pubkey", pubkey_result.err);
 			} else {
+				console.log('Got pubkeys', pubkey_result)
 				for (const pubkey of pubkey_result.keys) {
+					console.log('Got pubkey', pubkey)
 					// add fingerprint
 					let fingerprintElement = document.createElement('dt');
 					let fingerprint = pubkey.getFingerprint();
@@ -74,6 +82,24 @@ async function setupOptions() {
 	});
 }
 
+async function setupImport() {
+	const importActionElement = document.getElementById('import_action');
+	importActionElement.onclick = async function () {
+		const importElement = document.getElementById('import');
+		const pubkey_text = importElement.value;
+
+		const potential_pubkey_result = await openpgp.key.readArmored(pubkey_text);
+		if ('err' in potential_pubkey_result) {
+			console.log("Error parsing pubkey", potential_pubkey_result.err);
+			for (const e of potential_pubkey_result.err) {
+				alert(e);
+			}
+		} else {
+			await trustPubkey(pubkey_text);
+		}
+	}
+}
+
 chrome.storage.onChanged.addListener(function (changes, namespace) {
 	console.log("Storage change, reloading...");
 	generateKeyList('trusted');
@@ -82,4 +108,5 @@ chrome.storage.onChanged.addListener(function (changes, namespace) {
 window.addEventListener('load', (event) => {
 	generateKeyList('trusted');
 	setupOptions();
+	setupImport();
 });

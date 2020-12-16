@@ -46,30 +46,28 @@
 			border-radius: 0 0 3px 3px;
 		}
 
-		#add_pubkey label {
+		#import {
+			min-height: 20em;
+			/* ref: https://stackoverflow.com/questions/3165083/how-to-make-textarea-to-fill-div-block */
+			width: 100%;
+			-webkit-box-sizing: border-box;
+			/* Safari/Chrome, other WebKit */
+			-moz-box-sizing: border-box;
+			/* Firefox, other Gecko */
+			box-sizing: border-box;
+			/* Opera/IE 8+ */
+		}
+
+		label.btn {
 			background-color: lightblue;
 			padding: .5em;
 			border-radius: 3px;
-		}
-
-		#add_pubkey {
-			margin-top: 0;
-			padding-left: 0;
-		}
-
-		#add_pubkey li {
-			height: 50px;
-			list-style-type: none;
-		}
-
-		#add_pubkey label.btn {
 			display: inline-block;
-			width: 150px;
-			margin-bottom: 1em;
 			font-weight: bold;
+			border: 1px solid lightgoldenrodyellow;
 		}
 
-		#add_pubkey label.btn:hover {
+		label.btn:hover {
 			border: 1px solid lightgray;
 		}
 	</style>
@@ -89,18 +87,11 @@
 		<dl id="trusted">
 		</dl>
 	</div>
-	<h2>Add Public Key</h2>
+	<h2>Import Public Key</h2>
 	<div class="setting_section">
-		<ul id="add_pubkey">
-			<li>
-				<label for="files" class="btn" id="trust_from_file">From File</label>
-				<input id="files" style="visibility:hidden;" type="file" />
-			</li>
-			<li>
-				<label for="files" class="btn" id="trust_from_file">From Clipboard</label>
-				<input id="files" style="visibility:hidden;" type="file" />
-			</li>
-		</ul>
+		<textarea id="import" name="import" placeholder="Paste ASCII-armored Public Key Text"></textarea>
+		<label for="import_action" class="btn">Import</label>
+		<input id="import_action" style="visibility:hidden;" type="button" />
 	</div>
 </body>
 
