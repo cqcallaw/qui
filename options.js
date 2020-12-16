@@ -82,20 +82,17 @@ async function setupImport() {
 		const importElement = document.getElementById('import');
 		const pubkey_text = importElement.value;
 
-		const potential_pubkey_result = await openpgp.key.readArmored(pubkey_text);
-		console.log("Key import result", potential_pubkey_result);
-		if ('err' in potential_pubkey_result) {
-			console.log("Error parsing pubkey", potential_pubkey_result.err);
-			for (const e of potential_pubkey_result.err) {
+		const pubkeyReadResult = await openpgp.key.readArmored(pubkey_text);
+		console.log("Key import result", pubkeyReadResult);
+		if ('err' in pubkeyReadResult) {
+			console.log("Error parsing pubkey", pubkeyReadResult.err);
+			for (const e of pubkeyReadResult.err) {
 				alert(e);
 			}
-		} else if (potential_pubkey_result.keys.length > 1) {
-			// can't handle multiple pubkeys; we must serialize as armored text because JSON deserialization of keys throws an exception,
-			// and armored text serialization doesn't allow us to merge keys
-			alert("Armored text contains multiple keys, which is currently unsupported. Please import each key separately.");
-		}
-		else {
-			await trustPubkey(pubkey_text);
+		} else {
+			for (const pubkey of pubkeyReadResult.keys) {
+				await trustPubkey(pubkey);
+			}
 		}
 	}
 }

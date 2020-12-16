@@ -42,52 +42,44 @@ function checkTrusted(trustedPubkeys, subject) {
 	return false;
 }
 
-async function trustPubkey(pubkeyText) {
-	pubkeys = [];
+async function trustPubkey(pubkey) {
+	let result = [];
 
-	pubkeys_result = await readStorage('trusted');
-	if (Object.entries(pubkeys_result).length !== 0) {
-		pubkeys = pubkeys_result.trusted;
-		console.info("Read stored pubkeys", pubkeys);
+	let trustedPubkeys = await loadTrustedPubkeys();
+
+	for (const trustedPubkey of trustedPubkeys) {
+		result.push(trustedPubkey.armor());
 	}
 
 	// check for existing trust; no need to duplicate entries
-	trusted = false;
-	for (const pubkey of pubkeys) {
-		if (pubkey === pubkeyText) {
-			trusted = true;
-		}
-	}
+	let trusted = checkTrusted(trustedPubkeys, pubkey);
 
 	if (!trusted) {
 		/* Serialize public keys as ASCII-armored text;
 		openpgp.js throws an error when reconstituting keys from JSON
 		*/
-		pubkeys.push(pubkeyText);
+		result.push(pubkey.armor());
 		console.log("Added pubkey to trusted key store.");
 	}
 
-	return await writeStorage('trusted', pubkeys);
+	return await writeStorage('trusted', result);
 }
 
 async function loadTrustedPubkeys() {
 	let pubkeys = []
 
-	pubkey_text_result = await readStorage('trusted');
-	if (Object.entries(pubkey_text_result).length !== 0) {
-		pubkeys = pubkeys_result.trusted;
-		console.info("Read stored pubkeys", pubkeys);
-		for (const key_text of pubkeys) {
+	let trustedStoreReadResult = await readStorage('trusted');
+	if (Object.entries(trustedStoreReadResult).length !== 0) {
+		pubkeys = trustedStoreReadResult.trusted;
+		for (const keyText of pubkeys) {
 			/* Deserialize public keys as ASCII-armored text;
 			openpgp.js throws an error when reconstituting keys from JSON
 			*/
-			let pubkey_result = await openpgp.key.readArmored(key_text);
-			if ('err' in pubkey_result) {
-				console.log("Error parsing pubkey", pubkey_result.err);
+			let parseResult = await openpgp.key.readArmored(keyText);
+			if ('err' in parseResult) {
+				console.log("Error parsing pubkey", parseResult.err);
 			} else {
-				for (const pubkey of pubkey_result.keys) {
-					pubkeys.push(pubkey);
-				}
+				pubkeys = parseResult.keys;
 			}
 		}
 	}
