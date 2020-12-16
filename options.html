@@ -58,7 +58,11 @@
 			/* Opera/IE 8+ */
 		}
 
-		label.btn {
+		#import_ui {
+			text-align: right;
+		}
+
+		label.import_button {
 			background-color: lightblue;
 			padding: .5em;
 			border-radius: 3px;
@@ -67,7 +71,7 @@
 			border: 1px solid lightgoldenrodyellow;
 		}
 
-		label.btn:hover {
+		label.import_button:hover {
 			border: 1px solid lightgray;
 		}
 	</style>
@@ -90,8 +94,10 @@
 	<h2>Import Public Key</h2>
 	<div class="setting_section">
 		<textarea id="import" name="import" placeholder="Paste ASCII-armored Public Key Text"></textarea>
-		<label for="import_action" class="btn">Import</label>
-		<input id="import_action" style="visibility:hidden;" type="button" />
+		<div id="import_ui">
+			<input id="import_action" style="visibility:hidden;" type="button" />
+			<label for="import_action" class="import_button">Import</label>
+		</div>
 	</div>
 </body>
 
