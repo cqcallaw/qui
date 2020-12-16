@@ -241,7 +241,7 @@ async function getPubkeys(url) {
 		pubkey_text = await response.text();
 		potential_pubkey_result = await openpgp.key.readArmored(pubkey_text);
 		if ('err' in potential_pubkey_result) {
-			console.log("Error parsing pubkey", potential_pubkey.err);
+			console.log("Error parsing pubkey", potential_pubkey_result.err);
 		} else {
 			for (const pubkey of potential_pubkey_result.keys) {
 				potential_pubkeys.push(pubkey);
