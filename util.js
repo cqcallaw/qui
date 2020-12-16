@@ -86,3 +86,15 @@ async function loadTrustedPubkeys() {
 
 	return pubkeys;
 }
+
+const urlPatterns = [".ipfs.localhost", ".ipns.localhost"]
+
+function verifyUrlPattern(url) {
+	for (const urlPattern of urlPatterns) {
+		if (typeof (url) !== 'undefined' && url.indexOf(urlPattern) >= 0) {
+			return true;
+		}
+	}
+
+	return false;
+}

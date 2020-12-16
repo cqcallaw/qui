@@ -11,11 +11,10 @@ const statusMap = {
 	verify_fail: "Verification failed"
 }
 
-const urlPatterns = [".ipfs.localhost", ".ipns.localhost"]
-
 const sleep = (milliseconds) => {
 	return new Promise(resolve => setTimeout(resolve, milliseconds))
 }
+
 const setIcon = (tabId) => {
 	status = tabStatus[tabId];
 	if (status === 'verified') {
@@ -86,9 +85,11 @@ if (typeof (window) === 'undefined') {
 	});
 
 	// launch verification process when tab content is loaded or reloaded
-	chrome.tabs.onUpdated.addListener(function (tabId, info) {
+	chrome.tabs.onUpdated.addListener(async function (tabId, info) {
 		if (info.status === 'complete') {
-			triggerVerify();
+			let trustPromptResult = await readStorage('trust_prompt');
+			let trustPrompt = trustPromptResult.trust_prompt;
+			chrome.tabs.get(tabId, tab => verifyTab(tab, trustPrompt));
 		}
 	});
 
@@ -96,7 +97,7 @@ if (typeof (window) === 'undefined') {
 	chrome.tabs.onActivated.addListener(activeTab => {
 		console.info("Activated tab", activeTab);
 		if (!(activeTab.tabId in tabStatus)) {
-			triggerVerify();
+			verifyTab(activeTab, false); // no trust prompt
 		}
 	});
 
@@ -119,11 +120,19 @@ if (typeof (window) === 'undefined') {
 		}
 	);
 
-	// invalidate verification status if our keystore changes and verification isn't in progress
+	// invalidate verification status if our keystore changes
 	chrome.storage.onChanged.addListener(function (changes, namespace) {
-		console.log("Storage change, reloading...");
+		console.log("Storage change triggered");
+		if (notificationButtonClickState["trust-key-prompt"] = -1) {
+			// reload only if we aren't in the middle of trusting a new key
+			console.log("Storage change, reloading...");
+			chrome.tabs.query({}, tabs => {
+				tabs.forEach(async function (tab, index, array) {
+					verifyTab(tab, false); // no trust prompt
+				})
+			});
+		}
 	});
-
 }
 
 async function getRealUrl(url) {
@@ -192,14 +201,12 @@ async function getSignature(url) {
 	return signature;
 }
 
-async function getPubkeys(url) {
+async function getPubkeys(url, trustPrompt) {
 	let pubkey_text = null;
 
 	let trustedPubkeys = await loadTrustedPubkeys();
 
-	let trust_prompt_result = await readStorage('trust_prompt');
-	let trust_prompt = trust_prompt_result.trust_prompt;
-	if (!trust_prompt) {
+	if (!trustPrompt) {
 		return trustedPubkeys;
 	}
 
@@ -244,9 +251,7 @@ async function getPubkeys(url) {
 			});
 
 			const sleep_interval = 250;
-			while (!(prompt_id in notificationButtonClickState)
-				|| (notificationButtonClickState[prompt_id] === undefined)
-				|| (notificationButtonClickState[prompt_id] === -1)) {
+			while (notificationButtonClickState[prompt_id] === -1) {
 				console.info("Waiting for pubkey trust decision...");
 				await sleep(sleep_interval);
 			}
@@ -255,6 +260,7 @@ async function getPubkeys(url) {
 				console.log("Trusting key", key.getFingerprint());
 				trustedPubkeys.push(key);
 				await trustPubkey(key);
+				notificationButtonClickState[prompt_id] = -1;
 			} else {
 				console.log("User doesn't trust pubkey.");
 			}
@@ -278,7 +284,7 @@ async function getContent(url) {
 	return message;
 }
 
-async function verify(url) {
+async function verify(url, trustPrompt) {
 	url = await getRealUrl(url);
 	console.log("real url:", url)
 	if (url == null) {
@@ -291,7 +297,7 @@ async function verify(url) {
 		return 'sig_fail';
 	}
 
-	const pubkeys = await getPubkeys(url);
+	const pubkeys = await getPubkeys(url, trustPrompt);
 	console.log("pubkeys:", pubkeys)
 	if (pubkeys == null || typeof (pubkeys.err) !== 'undefined') {
 		return 'pubkey_fail';
@@ -320,23 +326,17 @@ async function verify(url) {
 	}
 }
 
-async function triggerVerify() {
-	chrome.tabs.query({ active: true, lastFocusedWindow: true }, tabs => {
-		tabs.forEach(async function (tab, index, array) {
-			url = tab.url;
-			// only run if we match a pattern;
-			// the background page of the extension runs even if the current page action is disabled
-			for (let i = 0; i < urlPatterns.length; i++) {
-				if (url.indexOf(urlPatterns[i]) >= 0) {
-					console.log("Verifying", tab.url);
-					tabStatus[tab.id] = "verifying"
-					setIcon(tab.id);
-					var result = await verify(tab.url);
-					tabStatus[tab.id] = result;
-					console.log(statusMap[result]);
-					setIcon(tab.id);
-				}
-			}
-		})
-	});
+async function verifyTab(tab, trustPrompt) {
+	url = tab.url;
+	// only run if we match a pattern;
+	// the background page of the extension runs even if the current page action is disabled
+	if (!verifyUrlPattern(url)) return;
+
+	console.log("Verifying", tab.url);
+	tabStatus[tab.id] = "verifying"
+	setIcon(tab.id);
+	var result = await verify(tab.url, trustPrompt);
+	tabStatus[tab.id] = result;
+	console.log(statusMap[result]);
+	setIcon(tab.id);
 }
