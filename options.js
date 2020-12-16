@@ -26,16 +26,16 @@ async function generateKeyList(keyClass) {
 	console.log("Generating key list for class", keyClass);
 	let keyList = document.getElementById(keyClass);
 	keyList.textContent = '';
-	let stored_pubkey_result = await readStorage(keyClass);
-	let pubkeys = stored_pubkey_result[keyClass];
-	if (typeof (pubkeys) !== 'undefined') {
-		for (let i = 0; i < pubkeys.length; i++) {
-			let pubkey_text = pubkeys[i];
-			let pubkey_result = await openpgp.key.readArmored(pubkey_text);
-			if ('err' in pubkey_result) {
-				console.log("Error parsing pubkey", pubkey_result.err);
+	let storedPubkeyResult = await readStorage(keyClass);
+	let storedPubkeys = storedPubkeyResult[keyClass];
+	if (typeof (storedPubkeys) !== 'undefined') {
+		for (let i = 0; i < storedPubkeys.length; i++) {
+			let storedPubkeyText = storedPubkeys[i];
+			let pubkeyParseResult = await openpgp.key.readArmored(storedPubkeyText);
+			if ('err' in pubkeyParseResult) {
+				console.log("Error parsing pubkey", pubkeyParseResult.err);
 			} else {
-				for (const pubkey of pubkey_result.keys) {
+				for (const pubkey of pubkeyParseResult.keys) {
 					// add fingerprint
 					let fingerprintElement = document.createElement('dt');
 					let fingerprint = pubkey.getFingerprint();
@@ -80,9 +80,9 @@ async function setupImport() {
 	const importActionElement = document.getElementById('import_action');
 	importActionElement.onclick = async function () {
 		const importElement = document.getElementById('import');
-		const pubkey_text = importElement.value;
+		const importText = importElement.value;
 
-		const pubkeyReadResult = await openpgp.key.readArmored(pubkey_text);
+		const pubkeyReadResult = await openpgp.key.readArmored(importText);
 		console.log("Key import result", pubkeyReadResult);
 		if ('err' in pubkeyReadResult) {
 			console.log("Error parsing pubkey", pubkeyReadResult.err);

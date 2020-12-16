@@ -11,10 +11,6 @@ const statusMap = {
 	verify_fail: "Verification failed"
 }
 
-const sleep = (milliseconds) => {
-	return new Promise(resolve => setTimeout(resolve, milliseconds))
-}
-
 const setIcon = (tabId) => {
 	status = tabStatus[tabId];
 	if (status === 'verified') {
@@ -139,26 +135,26 @@ async function getRealUrl(url) {
 	if (url.substr(-1) === '/') {
 		console.log(url, "does not contain path information, checking for real path...")
 		// ref: https://stackoverflow.com/a/10926978/577298
-		real_url_dict = {}
-		path_names = ['index', 'index.htm', 'index.html']
+		let realUrlDict = {}
+		const pathNames = ['index', 'index.htm', 'index.html']
 
-		let real_url = "";
-		for (let index = 0; index < path_names.length; index++) {
-			path = path_names[index];
+		let realUrl = "";
+		for (let index = 0; index < pathNames.length; index++) {
+			path = pathNames[index];
 			const potential = url + path;
 			let response = await fetch(potential);
 			if (response.ok) {
-				real_url = potential;
+				realUrl = potential;
 				break;
 			}
 		}
 
-		if (real_url === "") {
+		if (realUrl === "") {
 			console.log("No valid real URL found.")
 			return null;
 		}
 
-		url = real_url;
+		url = realUrl;
 		console.log("Using real URL", url);
 	}
 
@@ -169,31 +165,31 @@ async function getSignature(url) {
 	let signature = null;
 
 	// ASCII-armored signatures
-	let sig_url = url + ".asc"
-	console.info("Checking for", sig_url);
-	let response = await fetch(sig_url);
+	let signatureUrl = url + ".asc"
+	console.info("Checking for", signatureUrl);
+	let response = await fetch(signatureUrl);
 	if (response.ok) {
 		text = await response.text();
 		try {
 			signature = await openpgp.signature.readArmored(text);
 			return signature
 		} catch (e) {
-			console.log("Failed to parse signature file", sig_url);
+			console.log("Failed to parse signature file", signatureUrl);
 			// swallow error; we may have a valid binary sig
 		}
 	}
 
 	// Binary signatures
-	sig_url = url + ".sig"
-	console.info("Checking for", sig_url);
-	response = await fetch(sig_url);
+	signatureUrl = url + ".sig"
+	console.info("Checking for", signatureUrl);
+	response = await fetch(signatureUrl);
 	if (response.ok) {
 		data = new Uint8Array(await response.arrayBuffer());
 		try {
 			signature = await openpgp.signature.read(data);
 			return signature
 		} catch (e) {
-			console.log("Failed to parse signature file", sig_url);
+			console.log("Failed to parse signature file", signatureUrl);
 			// swallow error so UI can report error cleanly
 		}
 	}
@@ -202,36 +198,34 @@ async function getSignature(url) {
 }
 
 async function getPubkeys(url, trustPrompt) {
-	let pubkey_text = null;
-
 	let trustedPubkeys = await loadTrustedPubkeys();
 
 	if (!trustPrompt) {
 		return trustedPubkeys;
 	}
 
-	let pubkey_url = new URL(url);
-	pubkey_url.pathname = "pubkey.asc";
-	console.info("Checking for", pubkey_url.toString());
-	const response = await fetch(pubkey_url);
-	let potential_pubkeys = [];
+	let candidatePubkeyUrl = new URL(url);
+	candidatePubkeyUrl.pathname = "pubkey.asc";
+	console.info("Checking for", candidatePubkeyUrl.toString());
+	const response = await fetch(candidatePubkeyUrl);
+	let candidatePubkeys = [];
 	if (response.ok) {
-		pubkey_text = await response.text();
-		potential_pubkey_result = await openpgp.key.readArmored(pubkey_text);
-		if ('err' in potential_pubkey_result) {
-			console.log("Error parsing pubkey", potential_pubkey_result.err);
+		let responseText = await response.text();
+		let candidatePubkeyResult = await openpgp.key.readArmored(responseText);
+		if ('err' in candidatePubkeyResult) {
+			console.log("Error parsing pubkey", candidatePubkeyResult.err);
 		} else {
-			potential_pubkeys = potential_pubkey_result.keys;
+			candidatePubkeys = candidatePubkeyResult.keys;
 		}
 	}
 
-	console.info("Potential pubkeys", potential_pubkeys);
+	console.info("Potential pubkeys", candidatePubkeys);
 
-	for (const potential_pubkey of potential_pubkeys) {
-		let trusted = checkTrusted(trustedPubkeys, potential_pubkey);
+	for (const candidatePubkey of candidatePubkeys) {
+		let trusted = checkTrusted(trustedPubkeys, candidatePubkey);
 
 		if (!trusted) {
-			key = potential_pubkey;
+			key = candidatePubkey;
 			console.info("Verifying trust for", key);
 
 			// prompt user for pubkey trust
@@ -250,10 +244,10 @@ async function getPubkeys(url, trustPrompt) {
 				],
 			});
 
-			const sleep_interval = 250;
+			const sleepInterval = 250;
 			while (notificationButtonClickState[prompt_id] === -1) {
 				console.info("Waiting for pubkey trust decision...");
-				await sleep(sleep_interval);
+				await sleep(sleepInterval);
 			}
 
 			if (notificationButtonClickState[prompt_id] == 0) {

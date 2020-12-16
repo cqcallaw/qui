@@ -1,3 +1,7 @@
+const sleep = (milliseconds) => {
+	return new Promise(resolve => setTimeout(resolve, milliseconds))
+}
+
 function addDelimiter(str, delimiter, n) {
 	out = '';
 	out += str.charAt(0);
@@ -9,6 +13,18 @@ function addDelimiter(str, delimiter, n) {
 	}
 
 	return out;
+}
+
+const urlPatterns = [".ipfs.localhost", ".ipns.localhost"]
+
+function verifyUrlPattern(url) {
+	for (const urlPattern of urlPatterns) {
+		if (typeof (url) !== 'undefined' && url.indexOf(urlPattern) >= 0) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 // ref: https://stackoverflow.com/a/54261558/577298
@@ -85,16 +101,4 @@ async function loadTrustedPubkeys() {
 	}
 
 	return pubkeys;
-}
-
-const urlPatterns = [".ipfs.localhost", ".ipns.localhost"]
-
-function verifyUrlPattern(url) {
-	for (const urlPattern of urlPatterns) {
-		if (typeof (url) !== 'undefined' && url.indexOf(urlPattern) >= 0) {
-			return true;
-		}
-	}
-
-	return false;
 }
