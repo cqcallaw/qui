@@ -10,6 +10,8 @@
 		h2 {
 			background-color: lightgray;
 			padding-left: .25em;
+			margin-bottom: 0;
+			border-bottom: 1px solid gray;
 		}
 
 		body {
@@ -30,8 +32,41 @@
 			font-size: large;
 			margin-left: .5em;
 			color: white;
-			background-color: #f44336;
+			background-color: teal;
 			border-radius: 3px;
+		}
+
+		div.setting_section {
+			background-color: lightgoldenrodyellow;
+			padding: 1em;
+			border-radius: 6px;
+		}
+
+		#add_pubkey label {
+			background-color: lightblue;
+			padding: .5em;
+			border-radius: 3px;
+		}
+
+		#add_pubkey {
+			margin-top: 0;
+			padding-left: 0;
+		}
+
+		#add_pubkey li {
+			height: 50px;
+			list-style-type: none;
+		}
+
+		#add_pubkey label.btn {
+			display: inline-block;
+			width: 150px;
+			margin-bottom: 1em;
+			font-weight: bold;
+		}
+
+		#add_pubkey label.btn:hover {
+			border: 1px solid lightgray;
 		}
 	</style>
 	<script src="openpgp.js"></script>
@@ -42,10 +77,27 @@
 <body>
 	<h1>Settings</h1>
 	<h2>User Interface</h2>
-	<div><input type="checkbox" id="trust_prompt" name="trust_prompt" value="Boat"><label for="trust_prompt">Show Trust Prompt for Site-provided Public Keys</label></div>
+	<div class="setting_section"><input type="checkbox" id="trust_prompt" name="trust_prompt" value="Boat"><label
+			for="trust_prompt">Show Trust
+			Prompt for Site-provided Public Keys</label></div>
 	<h2>Trusted Keys</h2>
-	<dl id="trusted">
-	</dl>
+	<div class="setting_section">
+		<dl id="trusted">
+		</dl>
+	</div>
+	<h2>Add Public Key</h2>
+	<div class="setting_section">
+		<ul id="add_pubkey">
+			<li>
+				<label for="files" class="btn" id="trust_from_file">From File</label>
+				<input id="files" style="visibility:hidden;" type="file" />
+			</li>
+			<li>
+				<label for="files" class="btn" id="trust_from_file">From Clipboard</label>
+				<input id="files" style="visibility:hidden;" type="file" />
+			</li>
+		</ul>
+	</div>
 </body>
 
 </html>
