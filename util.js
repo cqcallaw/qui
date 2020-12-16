@@ -31,17 +31,42 @@ const writeStorage = (key, value) =>
 		)
 	)
 
-async function trustPubkey(pubkey) {
+function checkTrusted(trustedPubkeys, subject) {
+	for (const trustedPubkey of trustedPubkeys) {
+		if (subject.getFingerprint() === trustedPubkey.getFingerprint()) {
+			console.info(subject.getFingerprint(), "is trusted.");
+			return true;
+		}
+	}
+
+	return false;
+}
+
+async function trustPubkey(pubkeyText) {
 	pubkeys = [];
 
 	pubkeys_result = await readStorage('trusted');
-	// create default key set if no keys are stored
 	if (Object.entries(pubkeys_result).length !== 0) {
 		pubkeys = pubkeys_result.trusted;
-		console.info("Read pubkeys", pubkeys);
+		console.info("Read stored pubkeys", pubkeys);
 	}
 
-	pubkeys.push(pubkey);
+	// check for existing trust; no need to duplicate entries
+	trusted = false;
+	for (const pubkey of pubkeys) {
+		if (pubkey === pubkeyText) {
+			trusted = true;
+		}
+	}
+
+	if (!trusted) {
+		/* Serialize public keys as ASCII-armored text;
+		openpgp.js throws an error when reconstituting keys from JSON
+		*/
+		pubkeys.push(pubkeyText);
+		console.log("Added pubkey to trusted key store.");
+	}
+
 	return await writeStorage('trusted', pubkeys);
 }
 
@@ -49,9 +74,13 @@ async function loadTrustedPubkeys() {
 	let pubkeys = []
 
 	pubkey_text_result = await readStorage('trusted');
-	console.info("pubkey_text_result", pubkey_text_result);
 	if (Object.entries(pubkey_text_result).length !== 0) {
-		for (const key_text of pubkey_text_result.trusted) {
+		pubkeys = pubkeys_result.trusted;
+		console.info("Read stored pubkeys", pubkeys);
+		for (const key_text of pubkeys) {
+			/* Deserialize public keys as ASCII-armored text;
+			openpgp.js throws an error when reconstituting keys from JSON
+			*/
 			let pubkey_result = await openpgp.key.readArmored(key_text);
 			if ('err' in pubkey_result) {
 				console.log("Error parsing pubkey", pubkey_result.err);

@@ -8,16 +8,15 @@ async function removeKey(keyClass, index, fingerprint) {
 		console.log("Stored pubkey result", stored_pubkey_result);
 		let pubkeys = stored_pubkey_result[keyClass];
 		console.log("Stored pubkeys", pubkeys);
-		for (let i = 0; i < pubkeys.length; i++) {
-			if (i != index) {
-				out.push(pubkeys[i]);
+		if (typeof (pubkeys) !== 'undefined') {
+			for (let i = 0; i < pubkeys.length; i++) {
+				if (i != index) {
+					out.push(pubkeys[i]);
+				}
 			}
 		}
-
-		console.log("output", pubkeys);
-
+		console.log("output", out);
 		await writeStorage(keyClass, out)
-
 	} else {
 		console.log('User cancelled host removal.');
 	}
@@ -28,20 +27,15 @@ async function generateKeyList(keyClass) {
 	let keyList = document.getElementById(keyClass);
 	keyList.textContent = '';
 	let stored_pubkey_result = await readStorage(keyClass);
-	console.log("Got raw stored pubkey result", stored_pubkey_result);
 	let pubkeys = stored_pubkey_result[keyClass];
-	console.log("Got stored pubkey list", pubkeys);
 	if (typeof (pubkeys) !== 'undefined') {
 		for (let i = 0; i < pubkeys.length; i++) {
-			console.log(i);
 			let pubkey_text = pubkeys[i];
 			let pubkey_result = await openpgp.key.readArmored(pubkey_text);
 			if ('err' in pubkey_result) {
 				console.log("Error parsing pubkey", pubkey_result.err);
 			} else {
-				console.log('Got pubkeys', pubkey_result)
 				for (const pubkey of pubkey_result.keys) {
-					console.log('Got pubkey', pubkey)
 					// add fingerprint
 					let fingerprintElement = document.createElement('dt');
 					let fingerprint = pubkey.getFingerprint();
@@ -89,12 +83,18 @@ async function setupImport() {
 		const pubkey_text = importElement.value;
 
 		const potential_pubkey_result = await openpgp.key.readArmored(pubkey_text);
+		console.log("Key import result", potential_pubkey_result);
 		if ('err' in potential_pubkey_result) {
 			console.log("Error parsing pubkey", potential_pubkey_result.err);
 			for (const e of potential_pubkey_result.err) {
 				alert(e);
 			}
-		} else {
+		} else if (potential_pubkey_result.keys.length > 1) {
+			// can't handle multiple pubkeys; we must serialize as armored text because JSON deserialization of keys throws an exception,
+			// and armored text serialization doesn't allow us to merge keys
+			alert("Armored text contains multiple keys, which is currently unsupported. Please import each key separately.");
+		}
+		else {
 			await trustPubkey(pubkey_text);
 		}
 	}

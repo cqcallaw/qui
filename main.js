@@ -118,6 +118,12 @@ if (typeof (window) === 'undefined') {
 			}
 		}
 	);
+
+	// invalidate verification status if our keystore changes and verification isn't in progress
+	chrome.storage.onChanged.addListener(function (changes, namespace) {
+		console.log("Storage change, reloading...");
+	});
+
 }
 
 async function getRealUrl(url) {
@@ -224,12 +230,12 @@ async function trustPubkey(pubkey) {
 async function getPubkeys(url) {
 	let pubkey_text = null;
 
-	let pubkeys = await loadTrustedPubkeys();
+	let trustedPubkeys = await loadTrustedPubkeys();
 
 	let trust_prompt_result = await readStorage('trust_prompt');
 	let trust_prompt = trust_prompt_result.trust_prompt;
 	if (!trust_prompt) {
-		return pubkeys;
+		return trustedPubkeys;
 	}
 
 	let pubkey_url = new URL(url);
@@ -252,13 +258,7 @@ async function getPubkeys(url) {
 	console.info("Potential pubkey", potential_pubkeys);
 
 	for (const potential_pubkey of potential_pubkeys) {
-		let trusted = false;
-		for (const stored_pubkey of pubkeys) {
-			if (potential_pubkey.getFingerprint() === stored_pubkey.getFingerprint()) {
-				console.info(potential_pubkey.getFingerprint(), "is trusted.");
-				trusted = true;
-			}
-		}
+		let trusted = checkTrusted(trustedPubkeys, potential_pubkey);
 
 		if (!trusted) {
 			key = potential_pubkey;
@@ -290,7 +290,7 @@ async function getPubkeys(url) {
 
 			if (notificationButtonClickState[prompt_id] == 0) {
 				console.log("Trusting key", key.getFingerprint());
-				pubkeys.push(key);
+				trustedPubkeys.push(key);
 				await trustPubkey(pubkey_text);
 			} else {
 				console.log("User doesn't trust pubkey.");
@@ -298,7 +298,7 @@ async function getPubkeys(url) {
 		}
 	}
 
-	return pubkeys;
+	return trustedPubkeys;
 }
 
 async function getContent(url) {
