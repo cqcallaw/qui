@@ -115,8 +115,12 @@ if (typeof (window) === 'undefined') {
 			if (request.id == "tab_status") {
 				chrome.tabs.query({ active: true, lastFocusedWindow: true }, tabs => {
 					console.log("[background] tab query response", tabs);
-					activeTab = tabs[0]
-					let response = { id: "tab_status", status: statusMap[tabStatus[activeTab.id]] };
+					let activeTab = tabs[0]
+					let status = statusMap[tabStatus[activeTab.id]];
+					if (typeof (status) === 'undefined') {
+						status = 'Unknown';
+					}
+					let response = { id: "tab_status", status: status };
 					console.log("[background] Sending response", response);
 					sendResponse(response);
 				});
