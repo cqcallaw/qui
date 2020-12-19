@@ -2,9 +2,13 @@
 
 Verify the authenticity of Web3 documents signed by [PGP](https://en.wikipedia.org/wiki/Pretty_Good_Privacy).
 
+## Browser Support
+
+Tested in Chrome and Brave.
+
 ## Installation
 
-* [Chrome]()
+Install the unpacked extension in developer mode; if there's demand, I'll look into publishing it on the Web Store.
 
 ## Basic Usage
 
