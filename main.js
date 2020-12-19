@@ -29,15 +29,14 @@ const setIcon = (tabId) => {
 			path: "images/success.png",
 			tabId: tabId
 		});
-	}
-	else if (status === 'verifying') {
+	} else if (status === 'verify_fail') {
 		chrome.pageAction.setIcon({
-			path: "images/working.png",
+			path: "images/error.png",
 			tabId: tabId
 		});
 	} else {
 		chrome.pageAction.setIcon({
-			path: "images/error.png",
+			path: "images/working.png",
 			tabId: tabId
 		});
 	}
@@ -118,7 +117,7 @@ if (typeof (window) === 'undefined') {
 					let activeTab = tabs[0]
 					let status = statusMap[tabStatus[activeTab.id]];
 					if (typeof (status) === 'undefined') {
-						status = 'Unknown';
+						status = 'Unverified';
 					}
 					let response = { id: "tab_status", status: status };
 					console.log("[background] Sending response", response);
