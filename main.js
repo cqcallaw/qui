@@ -13,7 +13,6 @@ var tabStatus = {}
 var notificationButtonClickState = {}
 
 const statusMap = {
-	real_url_fail: "No real URL found",
 	sig_fail: "No signature found",
 	pubkey_fail: "Failed to obtain public key",
 	content_fail: "Failed to read signed content",
@@ -57,7 +56,7 @@ if (typeof (window) === 'undefined') {
 		// set defaults
 		writeStorage('trust_prompt', true);
 
-		// only enable extension for IPFS URLs
+		// only enable extension for IPFS URIs
 		chrome.declarativeContent.onPageChanged.removeRules(undefined, function () {
 			chrome.declarativeContent.onPageChanged.addRules([{
 				conditions: [
@@ -193,17 +192,17 @@ async function getSignature(uri) {
 	return signature;
 }
 
-async function getPubkeys(url, trustPrompt) {
+async function getPubkeys(uri, trustPrompt) {
 	let trustedPubkeys = await loadTrustedPubkeys();
 
 	if (!trustPrompt) {
 		return trustedPubkeys;
 	}
 
-	let candidatePubkeyUrl = new URL(url);
-	candidatePubkeyUrl.pathname = "pubkey.asc";
-	console.info("Checking for", candidatePubkeyUrl.toString());
-	const response = await fetch(candidatePubkeyUrl);
+	let candidatePubkeyUri = new URL(uri);
+	candidatePubkeyUri.pathname = "pubkey.asc";
+	console.info("Checking for", candidatePubkeyUri.toString());
+	const response = await fetch(candidatePubkeyUri);
 	let candidatePubkeys = [];
 	if (response.ok) {
 		let responseText = await response.text();
@@ -260,10 +259,10 @@ async function getPubkeys(url, trustPrompt) {
 	return trustedPubkeys;
 }
 
-async function getContent(url) {
-	const response = await fetch(url);
+async function getContent(uri) {
+	const response = await fetch(uri);
 	if (!response.ok) {
-		console.log("Failed to retrieve", url, "for verification");
+		console.log("Failed to retrieve", uri, "for verification");
 		return null;
 	}
 
@@ -274,20 +273,20 @@ async function getContent(url) {
 	return message;
 }
 
-async function verify(url, trustPrompt) {
-	const signature = await getSignature(url);
+async function verify(uri, trustPrompt) {
+	const signature = await getSignature(uri);
 	console.log("signature:", signature)
 	if (signature == null) {
 		return 'sig_fail';
 	}
 
-	const pubkeys = await getPubkeys(url, trustPrompt);
+	const pubkeys = await getPubkeys(uri, trustPrompt);
 	console.log("pubkeys:", pubkeys)
 	if (pubkeys == null || typeof (pubkeys.err) !== 'undefined') {
 		return 'pubkey_fail';
 	}
 
-	const message = await getContent(url);
+	const message = await getContent(uri);
 	console.log("message:", message)
 	if (openpgp.message == null) {
 		return 'content_fail';
@@ -311,10 +310,10 @@ async function verify(url, trustPrompt) {
 }
 
 async function verifyTab(tab, trustPrompt) {
-	url = tab.url;
+	let uri = tab.url;
 	// only run if we match a pattern;
 	// the background page of the extension runs even if the current page action is disabled
-	if (!verifyUrlPattern(url)) return;
+	if (!verifyUriPattern(uri)) return;
 
 	console.log("Verifying", tab.url);
 	tabStatus[tab.id] = "verifying"

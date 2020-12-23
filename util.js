@@ -26,11 +26,11 @@ function addDelimiter(str, delimiter, n) {
 	return out;
 }
 
-const urlPatterns = [".ipfs.localhost", ".ipns.localhost"]
+const uriPatterns = [".ipfs.localhost", ".ipns.localhost"]
 
-function verifyUrlPattern(url) {
-	for (const urlPattern of urlPatterns) {
-		if (typeof (url) !== 'undefined' && url.indexOf(urlPattern) >= 0) {
+function verifyUriPattern(uri) {
+	for (const uriPattern of uriPatterns) {
+		if (typeof (uri) !== 'undefined' && uri.indexOf(uriPattern) >= 0) {
 			return true;
 		}
 	}
