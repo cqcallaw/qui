@@ -145,68 +145,50 @@ if (typeof (window) === 'undefined') {
 	});
 }
 
-async function getRealUrl(url) {
-	if (url.substr(-1) === '/') {
-		console.log(url, "does not contain path information, checking for real path...")
-		// ref: https://stackoverflow.com/a/10926978/577298
-		let realUrlDict = {}
-		const pathNames = ['index', 'index.htm', 'index.html']
-
-		let realUrl = "";
-		for (let index = 0; index < pathNames.length; index++) {
-			path = pathNames[index];
-			const potential = url + path;
-			let response = await fetch(potential);
-			if (response.ok) {
-				realUrl = potential;
-				break;
-			}
-		}
-
-		if (realUrl === "") {
-			console.log("No valid real URL found.")
-			return null;
-		}
-
-		url = realUrl;
-		console.log("Using real URL", url);
-	}
-
-	return url;
-}
-
-async function getSignature(url) {
+async function getSignature(uri) {
 	let signature = null;
+	let signatureUriExtension = null;
+	let signatureResponse = null;
 
-	// ASCII-armored signatures
-	let signatureUrl = url + ".asc"
-	console.info("Checking for", signatureUrl);
-	let response = await fetch(signatureUrl);
-	if (response.ok) {
-		text = await response.text();
-		try {
-			signature = await openpgp.signature.readArmored(text);
-			return signature
-		} catch (e) {
-			console.log("Failed to parse signature file", signatureUrl);
-			// swallow error; we may have a valid binary sig
+	let pathExtensions = ['index.html.asc', 'index.html.sig', 'index.htm.sig', 'index.htm.asc', 'index.sig', 'index.asc']
+
+	// handle URIs with a real path component
+	if (uri.substr(-1) !== '/') {
+		console.log(uri, "contains path information, using it...")
+		pathExtensions = ['.sig', '.asc']
+	}
+
+	for (const pathExtension of pathExtensions) {
+		let potential = uri + pathExtension;
+		console.log("Checking potential signature path", potential);
+		signatureResponse = await fetch(potential)
+		if (signatureResponse.ok) {
+			signatureUriExtension = pathExtension;
+			break;
 		}
 	}
 
-	// Binary signatures
-	signatureUrl = url + ".sig"
-	console.info("Checking for", signatureUrl);
-	response = await fetch(signatureUrl);
-	if (response.ok) {
-		data = new Uint8Array(await response.arrayBuffer());
-		try {
+	if (signatureUriExtension === null) {
+		return signature;
+	}
+
+	try {
+		if (signatureUriExtension.endsWith('.sig')) {
+			// binary signature
+			data = new Uint8Array(await signatureResponse.arrayBuffer());
 			signature = await openpgp.signature.read(data);
 			return signature
-		} catch (e) {
-			console.log("Failed to parse signature file", signatureUrl);
-			// swallow error so UI can report error cleanly
+		} else if (signatureUriExtension.endsWith('.asc')) {
+			// ASCII-armored signature
+			text = await signatureResponse.text();
+			signature = await openpgp.signature.readArmored(text);
+			return signature
 		}
+	} catch (e) {
+		console.log("Failed to parse signature file", signatureUriExtension);
+		// swallow error so UI can report error cleanly
 	}
+
 
 	return signature;
 }
@@ -293,12 +275,6 @@ async function getContent(url) {
 }
 
 async function verify(url, trustPrompt) {
-	url = await getRealUrl(url);
-	console.log("real url:", url)
-	if (url == null) {
-		return 'real_url_fail';
-	}
-
 	const signature = await getSignature(url);
 	console.log("signature:", signature)
 	if (signature == null) {
