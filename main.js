@@ -132,7 +132,7 @@ if (typeof (window) === 'undefined') {
 	// invalidate verification status if our keystore changes
 	chrome.storage.onChanged.addListener(function (changes, namespace) {
 		console.log("Storage change triggered");
-		if (notificationButtonClickState["trust-key-prompt"] = -1) {
+		if (notificationButtonClickState["trust-key-prompt"] === -1) {
 			// reload only if we aren't in the middle of trusting a new key
 			console.log("Storage change, reloading...");
 			chrome.tabs.query({}, tabs => {
@@ -315,11 +315,12 @@ async function verifyTab(tab, trustPrompt) {
 	// the background page of the extension runs even if the current page action is disabled
 	if (!verifyUriPattern(uri)) return;
 
-	console.log("Verifying", tab.url);
+	let logPrefix = "[" + tab.id + "]";
+	console.log(logPrefix, "Verifying", tab.url);
 	tabStatus[tab.id] = "verifying"
 	setIcon(tab.id);
 	var result = await verify(tab.url, trustPrompt);
 	tabStatus[tab.id] = result;
-	console.log(statusMap[result]);
+	console.log(logPrefix, statusMap[result]);
 	setIcon(tab.id);
 }
